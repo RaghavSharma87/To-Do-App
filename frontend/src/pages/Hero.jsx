@@ -16,7 +16,7 @@ function Hero() {
   );
 
   return (
-    <div className="relative h-64 bg-slate-900 overflow-hidden rounded-xl mb-6 flex items-center justify-center">
+    <div className="relative h-64 bg-slate-900 overflow-hidden  mb-6 flex items-center justify-center">
       {/* Floating Dots */}
       {dots.map((dot) => (
         <div
@@ -31,7 +31,7 @@ function Hero() {
         />
       ))}
       
-      <h1 className="text-4xl font-bold text-white z-10">Raghav's To-Do</h1>
+      <h1 className="text-5xl animate-fade-in animation-delay-200 font-bold font-serif text-white z-10">To-Do Task Manager</h1>
     </div>
   );
 }
