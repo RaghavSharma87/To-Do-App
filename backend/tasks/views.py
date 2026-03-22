@@ -8,6 +8,19 @@ from django.shortcuts import get_object_or_404
 
 # Create your views here.
 
+class CategoryDeleteAPIView(APIView):
+    def delete(self,request,pk):
+        try:
+            category=Category.objects.get(pk=pk)
+        except Category.DoesNotExist:
+            return Response({"error":"Not Found"}, status=404)
+
+        general,_=Category.objects.get_or_create(name='General') 
+        Task.objects.filter(category=category).update(category=general)
+        category.delete()
+        return Response({"message":"Category Deleted"})   
+
+
 
 class CategoryListCreateAPIView(APIView):
     def get(self, request):

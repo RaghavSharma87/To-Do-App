@@ -5,8 +5,7 @@ const API = axios.create({
 });
 
 //  GET
-export const getTasks = (query = "") =>
-  API.get(`tasks/${query}`);
+export const getTasks = (query = "") => API.get(`tasks/${query}`);
 
 //  POST
 export const createTask = (task) => API.post("tasks/", task);
@@ -19,5 +18,6 @@ export const deleteTask = (id) => API.delete(`tasks/${id}/`);
 
 export const getCategories = () => API.get("categories/");
 export const createCategory = (data) => API.post("categories/", data);
+export const deleteCategory = (id) => API.delete(`categories/${id}/`);
 
 export default API;

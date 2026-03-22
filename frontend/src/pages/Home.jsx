@@ -6,6 +6,7 @@ import {
   deleteTask,
   createCategory,
   getCategories,
+  deleteCategory,
 } from "../api";
 
 function Home() {
@@ -27,7 +28,8 @@ function Home() {
   const fetchCategories = () => {
     getCategories().then((res) => {
       setCategories(res.data);
-      if (res.data.length > 0 && !selectedCategoryId) setSelectedCategoryId(res.data[0].id);
+      if (res.data.length > 0 && !selectedCategoryId)
+        setSelectedCategoryId(res.data[0].id);
     });
   };
 
@@ -42,7 +44,9 @@ function Home() {
         const query = `?category=${searchCategory}&person=${searchPerson}&date=${searchDate}`;
         const res = await getTasks(query);
         setTasks(res.data);
-      } catch (err) { console.error("Search error", err); }
+      } catch (err) {
+        console.error("Search error", err);
+      }
     }, 300);
     return () => clearTimeout(delay);
   }, [searchCategory, searchPerson, searchDate]);
@@ -59,9 +63,14 @@ function Home() {
         start_date: startDate || new Date().toISOString().split("T")[0],
         end_date: endDate || new Date().toISOString().split("T")[0],
       });
-      setTitle(""); setPerson(""); setStartDate(""); setEndDate("");
+      setTitle("");
+      setPerson("");
+      setStartDate("");
+      setEndDate("");
       fetchTask();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleAddCategory = async () => {
@@ -69,6 +78,12 @@ function Home() {
     await createCategory({ name: newCategory });
     setNewCategory("");
     fetchCategories();
+  };
+
+  const handleDeleteCategory = async (id) => {
+    await deleteCategory(id);
+    fetchCategories();
+    fetchTask();
   };
 
   const handleToggle = async (task) => {
@@ -84,7 +99,10 @@ function Home() {
   };
 
   const saveEdit = async (id) => {
-    if (!editText.trim()) { setEditId(null); return; }
+    if (!editText.trim()) {
+      setEditId(null);
+      return;
+    }
     await patchTask(id, { title: editText });
     setEditId(null);
     fetchTask();
@@ -93,42 +111,71 @@ function Home() {
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden">
       {/* 🖼️ THE BACKGROUND IMAGE LAYER */}
-      <div 
+      <div
         className="fixed inset-0 -z-10 w-full h-full bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/To-DoBKG.jpg')" }}
       >
         {/* Semi-transparent of background color */}
-        <div className="absolute inset-0 opacity-60" style={{ backgroundColor: 'var(--color-background)' }}></div>
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{ backgroundColor: "var(--color-background)" }}
+        ></div>
       </div>
 
       {/*  CONTENT CONTAINER */}
       <div className="relative z-10 p-5 max-w-2xl mx-auto pt-16">
-        
         {/* HEADER (Floating Animation) */}
         <div className="mb-10 animate-fade-in animate-float">
-          <h1 className="text-4xl font-extrabold tracking-wide font-serif" style={{ color: 'var(--color-text)' }}>
-             To-Do
+          <h1
+            className="text-4xl font-extrabold tracking-wide font-serif"
+            style={{ color: "var(--color-text)" }}
+          >
+            To-Do
           </h1>
-          <p className="text-lg font-medium opacity-80" style={{ color: 'var(--color-text)' }}>
+          <p
+            className="text-lg font-medium opacity-80"
+            style={{ color: "var(--color-text)" }}
+          >
             Stay Efficient.
           </p>
         </div>
 
         {/* CATEGORY CREATION (Fade In) */}
-        <div className="flex gap-2 mb-8 p-4 bg-white/40 backdrop-blur-xl rounded-2xl border border-white/30 animate-fade-in shadow-sm" >
+        <div className="flex gap-2 mb-8 p-4 bg-white/40 backdrop-blur-xl rounded-2xl border border-white/30 animate-fade-in shadow-sm">
           <input
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
             placeholder="New category..."
-            className="bg-transparent border-none p-2 flex-1 rounded-lg outline-none text-gray-800 placeholder-text"  
+            className="bg-transparent border-none p-2 flex-1 rounded-lg outline-none text-gray-800 placeholder-text"
           />
           <button
             onClick={handleAddCategory}
             className="px-6 py-2 rounded-2xl transition-all active:scale-95 font-bold text-white shadow-md hover:opacity-70"
-            style={{ backgroundColor: 'var(--color-text)' }}
+            style={{ backgroundColor: "var(--color-text)" }}
           >
             +
           </button>
+        </div>
+        {/* CATEGORY LIST WITH DELETE */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {categories.map((cat) => (
+            <div
+              key={cat.id}
+              className="flex items-center gap-2 px-3 py-1 bg-black/80 backdrop-blur rounded-full border border-white/30"
+            >
+              <span className="text-sm">{cat.name}</span>
+
+              {/*  Prevent deleting General */}
+              {cat.name !== "General" && (
+                <button
+                  onClick={() => handleDeleteCategory(cat.id)}
+                  className="text-red-500 text-xs font-bold hover:text-red-700"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* TASK FORM  */}
@@ -136,13 +183,38 @@ function Home() {
           onSubmit={handleSubmit}
           className="flex flex-col gap-4 mb-10 p-8 rounded-3xl border border-white/40 shadow-2xl animate-fade-in animation-delay-400 bg-white/30 backdrop-blur-2xl"
         >
+          <h3
+            className="flex flex-cols gap-1 font-bold uppercase tracking-wide"
+            style={{ color: "var(--color-text" }}
+          >
+            Start Date:
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-black/60 p-2 rounded-full outline-none text-sm focus:ring-2 py-1"
+            />
+          </h3>
+          <h3
+            className="flex flex-cols gap-1 font-bold uppercase tracking-wide"
+            style={{ color: "var(--color-text" }}
+          >
+            End Date :
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-black/60 px-2 rounded-full outline-none text-sm focus:ring-2 py-2"
+            />
+          </h3>
+
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="What needs to be done?"
             className="bg-white/40 border-none p-4 rounded-2xl outline-none focus:bg-primary transition-all text-xl placeholder-text shadow-inner"
           />
-          
+
           <div className="grid grid-cols-2 gap-4">
             <input
               value={person}
@@ -156,15 +228,17 @@ function Home() {
               className="bg-black/80 border-none p-3 rounded-xl outline-none cursor-pointer text-sm "
             >
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
             </select>
           </div>
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             className="w-full py-4 rounded-2xl font-black text-white mt-2 transition-all active:scale-95 shadow-lg tracking-widest uppercase text-sm"
-            style={{ backgroundColor: 'var(--color-text)' }}
+            style={{ backgroundColor: "var(--color-text)" }}
           >
             Add Task
           </button>
@@ -172,11 +246,11 @@ function Home() {
 
         {/* SEARCH BAR (Delay 200ms) */}
         <div className="flex gap-4 mb-8 p-4 bg-white/20 backdrop-blur-md rounded-2xl border border-white/20 animate-fade-in animation-delay-200 shadow-sm">
-          <input 
-            placeholder="🔍 Search by assignee" 
-            value={searchPerson} 
-            onChange={(e) => setSearchPerson(e.target.value)} 
-            className="bg-transparent text-gray-700 placeholder-gray-900 text-sm p-1 outline-none w-full" 
+          <input
+            placeholder="🔍 Search by assignee"
+            value={searchPerson}
+            onChange={(e) => setSearchPerson(e.target.value)}
+            className="bg-transparent text-gray-700 placeholder-gray-900 text-sm p-1 outline-none w-full"
           />
         </div>
 
@@ -193,7 +267,7 @@ function Home() {
                 checked={task.completed}
                 onChange={() => handleToggle(task)}
                 className="w-6 h-6 rounded-full cursor-pointer transition-transform hover:scale-110"
-                style={{ accentColor: 'var(--color-primary)' }}
+                style={{ accentColor: "var(--color-primary)" }}
               />
 
               <div className="flex-1">
@@ -205,25 +279,47 @@ function Home() {
                       if (e.key === "Enter") saveEdit(task.id);
                       if (e.key === "Escape") setEditId(null);
                     }}
-                    onBlur={()=>saveEdit(task.id)}
+                    onBlur={() => saveEdit(task.id)}
                     autoFocus
                     className="bg-black/50 p-2 rounded-xl w-full outline-none border border-gray-300"
                   />
                 ) : (
-                  <h2 className={`text-xl font-semibold transition-all duration-500 ${task.completed ? "line-through opacity-90 italic" : "text-gray-800"}`}>
+                  <h2
+                    className={`text-xl font-semibold transition-all duration-500 ${task.completed ? "line-through opacity-90 italic" : "text-gray-800"}`}
+                  >
                     {task.title}
                   </h2>
                 )}
 
-                <div className="flex gap-4 text-[11px] uppercase tracking-tighter font-bold opacity-60 mt-1" style={{ color: 'var(--color-text)' }}>
-                  <span className="bg-white/40 px-2 py-0.5 rounded-lg border border-black/5">{task.category_name}</span>
-                  <span className="flex items-center gap-1">👤 {task.person}</span>
+                <div
+                  className="flex gap-4 text-[11px] uppercase tracking-tighter font-bold opacity-60 mt-1"
+                  style={{ color: "var(--color-text)" }}
+                >
+                  <span className="bg-white/40 px-2 py-0.5 rounded-lg border border-black/5">
+                    {task.category_name}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    👤 {task.person}
+                  </span>
                 </div>
               </div>
 
               <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => { setEditId(task.id); setEditText(task.title); }} className="text-gray-500 hover:text-black text-xs font-bold underline">Edit</button>
-                <button onClick={() => handleDelete(task.id)} className="text-red-500 hover:text-red-700 text-xs font-bold underline">Delete</button>
+                <button
+                  onClick={() => {
+                    setEditId(task.id);
+                    setEditText(task.title);
+                  }}
+                  className="text-gray-500 hover:text-black text-xs font-bold underline"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(task.id)}
+                  className="text-red-500 hover:text-red-700 text-xs font-bold underline"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
