@@ -17,10 +17,11 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from tasks.views import TaskListCreateAPIView, TaskDetailAPIView
+from tasks.views import TaskListCreateAPIView, TaskDetailAPIView, CategoryListCreateAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/categories/', CategoryListCreateAPIView.as_view()),
 
     path('api/tasks/', TaskListCreateAPIView.as_view()),
     path('api/tasks/<int:pk>/', TaskDetailAPIView.as_view()),
