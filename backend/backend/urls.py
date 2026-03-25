@@ -22,10 +22,14 @@ from tasks.views import (
     TaskDetailAPIView,
     CategoryListCreateAPIView,
     CategoryDeleteAPIView,
+    RegisterUserAPIView,
+    LoginAPIView,
 )
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/register/", RegisterUserAPIView.as_view()),
+    path("api/login/", LoginAPIView.as_view()),
     path("api/categories/", CategoryListCreateAPIView.as_view()),
     path("api/categories/<int:pk>/", CategoryDeleteAPIView.as_view()),
     path("api/tasks/", TaskListCreateAPIView.as_view()),
