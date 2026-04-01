@@ -22,7 +22,7 @@ function NavBar() {
 
   return (
     <header
-      className={`fixed top-0 w-full z-50 transition-all duration-300 ${
+      className={`fixed top-0 w-full z-50 transition-all duration-300  ${
         isScrolled 
           ? "bg-nav-bg/80 backdrop-blur-md border-b border-border-subtle py-3" 
           : "bg-transparent py-5"
@@ -61,7 +61,9 @@ function NavBar() {
             </button>
           )}
         </div>
+        
       </nav>
+      
     </header>
   );
 }
