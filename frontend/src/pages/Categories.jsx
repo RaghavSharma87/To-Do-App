@@ -88,7 +88,7 @@ function Categories() {
         {categories.map((cat) => (
           <div
             key={cat.id}
-            className="group flex justify-between items-center p-5 glass rounded-2xl border-border-subtle hover:bg-white/40 transition-all duration-300"
+            className="group bg-card/50 flex justify-between items-center p-5 glass rounded-2xl border-border-subtletransition-all duration-300"
           >
             <div>
               <span className="text-[9px] uppercase tracking-widest font-bold text-text-muted/60 mb-1 block">Name</span>

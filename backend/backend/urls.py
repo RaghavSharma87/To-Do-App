@@ -24,6 +24,7 @@ from tasks.views import (
     CategoryDeleteAPIView,
     RegisterUserAPIView,
     LoginAPIView,
+    TaskReorderAPIView
 )
 
 urlpatterns = [
@@ -34,4 +35,5 @@ urlpatterns = [
     path("api/categories/<int:pk>/", CategoryDeleteAPIView.as_view()),
     path("api/tasks/", TaskListCreateAPIView.as_view()),
     path("api/tasks/<int:pk>/", TaskDetailAPIView.as_view()),
+    path("api/tasks/reorder/", TaskReorderAPIView.as_view()),
 ]

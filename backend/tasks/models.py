@@ -2,12 +2,31 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.models import User
+from datetime import time
 
+FREQUENCY_CHOICES=[
+    ('once','Once'),
+    ('weekdays', 'Select Weekdays'),
+    ('daily', 'Everyday'),
+    ('weekends','Weekends'),
+    ('date','Selected Date'),
+    ('custom','Custom Dates')
+
+]
+
+PRIORITY_CHOICES = [
+    ('none', 'None'),
+    ('low', 'Low'),
+    ('medium', 'Medium'),
+    ('high', 'High'),
+]
 
 def get_default_category():
     category, created = Category.objects.get_or_create(name="General")
     return category.id
 
+def get_default_end_time():
+    return time(23,59) # 11:59PM
 
 def get_default_end_date():
     return timezone.now() + timedelta(days=7)
@@ -33,6 +52,8 @@ class Task(models.Model):
         related_name="tasks",
         default=get_default_category,
     )
+    frequency=models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='once')
+    frequency_days=models.JSONField(default=list, blank=True)
 
     person = models.CharField(max_length=200, default="Unassigned")
 
@@ -40,4 +61,9 @@ class Task(models.Model):
 
     end_date = models.DateField(default=get_default_end_date)
 
+    end_time=models.TimeField(default=get_default_end_time)
+
     created_at = models.DateTimeField(auto_now_add=True)
+
+    priority=models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='none')
+    order = models.PositiveIntegerField(default=0)

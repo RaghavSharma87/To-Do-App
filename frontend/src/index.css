@@ -3,25 +3,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* The Base: Very light warm white */
+  /* --- LIGHT THEME (Default Variables) --- */
   --color-background: #F9F8F6; 
-  /* Subtle borders/dividers */
   --color-border-subtle: #E8E5E0;
-
-  /* Cards & Containers: Pure white to pop against the off-white bg */
   --color-card: #FFFFFF;
-  
-  /* Primary Action: A deep, "soft" black (Zinc/Stone) */
   --color-primary: #18181B;
-  /* Hover states for buttons */
-  --color-primary-hover: #27272A;
-
-  /* Typography: Never use pure #000; it's too harsh */
+  --color-primary-hover: #333733;
   --color-text-main: #1C1917;
   --color-text-muted: #78716C;
+  --color-nav-bg: rgba(249, 248, 246, 0.8);
+}
 
-  /* Navigation Bar Specific */
-  --color-nav-bg: rgba(249, 248, 246, 0.8); /* Glassmorphism effect */
+/* --- DARK THEME OVERRIDES --- */
+/* This block targets the .dark class on the <html> tag */
+.dark {
+  --color-background: #252725;     
+  --color-card: #353935;           /* Slightly lighter Zinc for cards */
+  --color-border-subtle: #151715;  /* Defined edges */
+  --color-text-main: #FAFAFA;      /* Off-white */
+  --color-text-muted: #A1A1AA;     /* Gray-400 */
+  --color-primary: #F4F4F5;        /* White-ish CTA */
 }
 
 @layer components {
@@ -49,6 +50,9 @@
     box-shadow: 0 0 15px color-mix(in srgb, var(--color-primary) 10%, transparent),
                 inset 0 0 10px color-mix(in srgb, var(--color-primary) 5%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+  .nav-link {
+    @apply text-xs uppercase tracking-[0.2em] font-medium text-text-muted hover:text-text-main transition-all duration-300;
   }
 }
 

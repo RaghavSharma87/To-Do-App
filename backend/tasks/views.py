@@ -68,7 +68,7 @@ class TaskListCreateAPIView(APIView):
     permission_classes=[IsAuthenticated]
 
     def get(self, request):
-        tasks = Task.objects.filter(user=request.user)
+        tasks = Task.objects.filter(user=request.user).order_by('order')
         # filters
         category = request.GET.get("category")
         person = request.GET.get("person")
@@ -80,7 +80,7 @@ class TaskListCreateAPIView(APIView):
             tasks = tasks.filter(person__icontains=person)
 
         if date:
-            tasks = tasks.filter(start_date=date)
+            tasks = tasks.filter(end_date=date)
 
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
@@ -122,3 +122,13 @@ class TaskDetailAPIView(APIView):
         task = self.get_object(pk)
         task.delete()
         return Response({"message": "Deleted"}, status=204)
+
+class TaskReorderAPIView(APIView):
+    permission_classes=[IsAuthenticated]
+
+    def post(self,request):
+        for item in request.data:
+            Task.objects.filter(id=item['id'], user=request.user).update(order=item['order'])
+        return Response({'status':'ok'})
+        
+    
