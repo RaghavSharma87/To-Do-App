@@ -52,6 +52,9 @@ REST_FRAMEWORK={
 SIMPLE_JWT={
     'ACCESS_TOKEN_LIFETIME' : timedelta(hours=1)
 }
+CORS_ALLOWED_ORIGINS = [
+    "https://to-do-app-pi-six-63.vercel.app",
+]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
