@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 # Create your views here.
 
 
@@ -33,7 +34,7 @@ class RegisterUserAPIView(APIView):
 
 
 class LoginAPIView(TokenObtainPairView):
-    pass
+    serializer_class = TokenObtainPairSerializer
 
 
 class CategoryDeleteAPIView(APIView):
