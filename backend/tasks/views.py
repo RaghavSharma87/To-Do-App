@@ -34,7 +34,17 @@ class RegisterUserAPIView(APIView):
 
 
 class LoginAPIView(TokenObtainPairView):
-    serializer_class = TokenObtainPairSerializer
+    def post(self, request, *args, **kwargs):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return super().post(request, *args, **kwargs)
 
 
 class CategoryDeleteAPIView(APIView):
