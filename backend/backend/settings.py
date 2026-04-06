@@ -25,9 +25,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-1snn0gz+$$o87^9s$d-**mzr%(7+&q^i6-p+u1ndd5s0wx(@=3'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['minimalist-to-do.onrender.com', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    "to-do-app-j4at.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # Application definition
@@ -53,7 +57,11 @@ SIMPLE_JWT={
     'ACCESS_TOKEN_LIFETIME' : timedelta(hours=1)
 }
 CORS_ALLOWED_ORIGINS = [
-    "https://to-do-app-pi-six-63.vercel.app",
+    "https://to-do-app-redk.vercel.app",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://to-do-app-redk.vercel.app",
 ]
 
 MIDDLEWARE = [
