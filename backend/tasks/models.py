@@ -21,9 +21,6 @@ PRIORITY_CHOICES = [
     ('high', 'High'),
 ]
 
-def get_default_category():
-    category, created = Category.objects.get_or_create(name="General")
-    return category.id
 
 def get_default_end_time():
     return time(23,59) # 11:59PM
@@ -50,7 +47,8 @@ class Task(models.Model):
         Category,
         on_delete=models.CASCADE,
         related_name="tasks",
-        default=get_default_category,
+        null=True,
+        blank=True
     )
     frequency=models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='once')
     frequency_days=models.JSONField(default=list, blank=True)
