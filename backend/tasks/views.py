@@ -68,7 +68,11 @@ class TaskListCreateAPIView(APIView):
     permission_classes=[IsAuthenticated]
 
     def get(self, request):
-        tasks = Task.objects.filter(user=request.user).order_by('order')
+        archived=request.GET.get("archived")
+        if archived == "true":
+            tasks=Task.objects.filter(user=request.user, archived=True).order_by('order')
+        else:
+            tasks=Task.objects.filter(user=request.user, archived=False).order_by('order')
         # filters
         category = request.GET.get("category")
         person = request.GET.get("person")
@@ -94,8 +98,10 @@ class TaskListCreateAPIView(APIView):
 
 
 class TaskDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get_object(self, pk):
-        return get_object_or_404(Task, pk=pk)
+        return get_object_or_404(Task, pk=pk, user=self.request.user)
 
     def get(self, request, pk):
         task = self.get_object(pk)

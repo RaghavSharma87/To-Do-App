@@ -5,6 +5,7 @@ import NavBar from "./components/NavBar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/LandingPage";
 import Categories from "./pages/Categories";
+import Archive from "./pages/Archive";
 import {
   BrowserRouter,
   Route,
@@ -16,7 +17,9 @@ function Layout() {
   const location = useLocation();
 
   // Hide the global navbar on both Auth and Landing pages
-  const hideNavbar = ["/auth", "/"].includes(location.pathname);
+  const hideNavbar = ["/auth", "/", "/home", "/categories","/archive"].includes(
+    location.pathname,
+  );
 
   return (
     <>
@@ -41,13 +44,22 @@ function Layout() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/archive"
+          element={
+            <ProtectedRoute>
+              <Archive />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
 }
 function App() {
   return (
-    <ThemeProvider> 
+    <ThemeProvider>
       <BrowserRouter>
         <Layout />
       </BrowserRouter>

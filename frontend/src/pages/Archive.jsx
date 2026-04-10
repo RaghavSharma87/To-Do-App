@@ -1,16 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getCategories, createCategory, deleteCategory } from "../api";
+import { getTasks, patchTask } from "../api";
 import { useTheme } from "../components/ThemeContext";
 import {
-  Sun, Moon, Archive, Tag, Trash, Settings, Plus,
+  Sun, Moon, Archive, Tag, Trash, Settings, RotateCcw,
+} from "lucide-react";
+import {
+  Plus,
 } from "lucide-react";
 
-function Categories() {
-  const [categories, setCategories] = useState([]);
-  const [newCategory, setNewCategory] = useState("");
+function ArchivePage() {
+  const [tasks, setTasks] = useState([]);
   const { theme, toggleTheme } = useTheme();
-  const [activeNav, setActiveNav] = useState("categories");
+  const [activeNav, setActiveNav] = useState("archive");
   const navigate = useNavigate();
 
   const todayLabel = new Date()
@@ -19,39 +21,18 @@ function Categories() {
     })
     .toUpperCase();
 
-  const fetchCategories = async () => {
-    try {
-      const res = await getCategories();
-      setCategories(res.data);
-    } catch (err) {
-      console.error(err);
-    }
+  const fetchArchived = async () => {
+    const res = await getTasks({ archived: true });
+    setTasks(res.data);
   };
 
   useEffect(() => {
-    fetchCategories();
+    fetchArchived();
   }, []);
 
-  const handleCreate = async (e) => {
-    if (e) e.preventDefault();
-    if (!newCategory.trim()) return;
-    try {
-      await createCategory({ name: newCategory });
-      setNewCategory("");
-      fetchCategories();
-    } catch (err) {
-      console.error(err.response?.data || err);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this category?")) return;
-    try {
-      await deleteCategory(id);
-      fetchCategories();
-    } catch (err) {
-      console.error(err);
-    }
+  const restoreTask = async (task) => {
+    await patchTask(task.id, { archived: false, completed: false });
+    fetchArchived();
   };
 
   const navItems = [
@@ -69,11 +50,11 @@ function Categories() {
     },
     {
       id: "categories", label: "Categories", icon: <Tag size={15} />,
-      onClick: () => setActiveNav("categories"),
+      onClick: () => { setActiveNav("categories"); navigate("/categories"); },
     },
     {
       id: "archive", label: "Archive", icon: <Archive size={15} />,
-      onClick: () => { setActiveNav("archive"); navigate("/archive"); },
+      onClick: () => setActiveNav("archive"),
     },
     {
       id: "bin", label: "Bin", icon: <Trash size={15} />,
@@ -140,7 +121,7 @@ function Categories() {
         <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border-subtle bg-background sticky top-0 z-10">
           <div>
             <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted">{todayLabel}</p>
-            <h1 className="text-xl font-semi-bold font-serif text-text-main leading-tight mt-0.5 tracking-tight">Categories</h1>
+            <h1 className="text-xl font-semi-bold font-serif text-text-main leading-tight mt-0.5 tracking-tight">Archive</h1>
           </div>
           <button
             onClick={toggleTheme}
@@ -155,93 +136,82 @@ function Categories() {
 
           {/* Hero */}
           <div className="mb-8">
-            <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-2">Organize</p>
+            <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-2">Archived</p>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold font-serif text-text-main leading-tight max-w-sm">
-              Organize your world.
+              Tasks stored for later.
             </h2>
             <div className="w-10 h-px bg-text-main mt-5" />
           </div>
 
-          {/* Add category form */}
-          <form onSubmit={handleCreate} className="flex gap-2 mb-10">
-            <div className="relative flex-1">
-              <Tag
-                size={13}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-              />
-              <input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-                placeholder="New category name..."
-                className="h-9 w-full pl-8 pr-3 bg-card border border-border-subtle rounded-full text-xs text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors font-sans"
-              />
-            </div>
-            <button
-              type="submit"
-              className="flex items-center gap-1.5 px-4 h-9 bg-primary text-background rounded-full text-xs font-sans font-semibold hover:opacity-80 transition-all flex-shrink-0"
-            >
-              <Plus size={13} />
-              Add
-            </button>
-          </form>
-
-          {/* Section label */}
-          {categories.length > 0 && (
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
-                All Categories
-              </h3>
-              <span className="text-[10px] font-sans text-text-muted">
-                {categories.length} entries
-              </span>
+          {/* Stats strip */}
+          {tasks.length > 0 && (
+            <div className="mb-8 flex items-center gap-4">
+              <div className="bg-card border border-border-subtle rounded-xl px-4 py-3 flex items-center gap-3">
+                <Archive size={13} className="text-text-muted" />
+                <div>
+                  <p className="text-[9px] font-sans uppercase tracking-[0.15em] text-text-muted">Total Archived</p>
+                  <p className="text-sm font-semibold font-sans text-text-main">{tasks.length}</p>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Category rows */}
-          {categories.map((cat) => (
+          {/* Section label */}
+          {tasks.length > 0 && (
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
+                All Archived Tasks
+              </h3>
+              <span className="text-[10px] font-sans text-text-muted">{tasks.length} entries</span>
+            </div>
+          )}
+
+          {/* Task rows */}
+          {tasks.map((task) => (
             <div
-              key={cat.id}
-              className="flex items-center gap-3 py-4 border-b border-border-subtle group last:border-b-0"
+              key={task.id}
+              className="flex items-start gap-3 py-4 border-b border-border-subtle group last:border-b-0"
             >
-              {/* Dot */}
-              <div className="w-[18px] h-[18px] rounded-full border-2 border-border-subtle flex-shrink-0 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+              {/* Archive icon */}
+              <div className="mt-0.5 w-[18px] h-[18px] rounded-full border-2 border-border-subtle flex-shrink-0 flex items-center justify-center text-text-muted">
+                <Archive size={9} />
               </div>
 
-              {/* Name */}
+              {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold font-serif leading-snug text-text-main">
-                  {cat.name}
+                <p className="text-sm font-semibold font-serif leading-snug text-text-muted line-through">
+                  {task.title}
                 </p>
-                {cat.name === "General" && (
-                  <p className="text-[10px] font-sans text-text-muted mt-0.5 uppercase tracking-wide">
-                    Default
-                  </p>
-                )}
+                <p className="text-xs text-text-muted font-sans mt-0.5">
+                  {task.person && task.person !== "Unassigned" && (
+                    <span>{task.person} · </span>
+                  )}
+                  {task.end_date && <span>Due: {task.end_date}</span>}
+                  {task.category_name && (
+                    <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-background border border-border-subtle text-[10px] uppercase tracking-wide">
+                      {task.category_name}
+                    </span>
+                  )}
+                </p>
               </div>
 
-              {/* Delete */}
-              {cat.name !== "General" ? (
-                <button
-                  onClick={() => handleDelete(cat.id)}
-                  className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-[10px] font-sans font-semibold uppercase tracking-wider text-text-muted hover:text-red-400 flex-shrink-0"
-                >
-                  Delete
-                </button>
-              ) : (
-                <span className="text-[10px] font-sans text-text-muted italic flex-shrink-0 opacity-40">
-                  Protected
-                </span>
-              )}
+              {/* Restore button */}
+              <button
+                onClick={() => restoreTask(task)}
+                className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 text-[10px] font-sans font-semibold uppercase tracking-wider text-text-muted hover:text-text-main transition-all flex-shrink-0 mt-0.5"
+              >
+                <RotateCcw size={11} />
+                Restore
+              </button>
             </div>
           ))}
 
           {/* Empty state */}
-          {categories.length === 0 && (
+          {tasks.length === 0 && (
             <div className="text-center py-24">
-              <Tag size={24} className="text-text-muted mx-auto mb-3 opacity-30" />
+              <Archive size={24} className="text-text-muted mx-auto mb-3 opacity-30" />
               <p className="text-text-muted text-xs font-sans tracking-wide uppercase">
-                No categories defined yet.
+                Nothing archived yet.
               </p>
             </div>
           )}
@@ -267,4 +237,4 @@ function Categories() {
   );
 }
 
-export default Categories;
+export default ArchivePage;

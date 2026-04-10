@@ -1,18 +1,36 @@
 import axios from "axios";
-
+import { isTokenValid } from "./utils/auth";
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
 
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+
+  if (token && isTokenValid(token)) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    localStorage.removeItem("token");
   }
+
   return config;
 });
+
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && window.location.pathname !== "/auth") {
+      localStorage.removeItem("token");
+      window.location.href = "/auth";
+    }
+    return Promise.reject(error);
+  }
+);
 //  GET
-export const getTasks = (query = "") => API.get(`tasks/${query}`);
+export const getTasks = (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  return API.get(`tasks/${query ? `?${query}` : ""}`);
+};
 
 //  POST
 export const createTask = (task) => API.post("tasks/", task);
