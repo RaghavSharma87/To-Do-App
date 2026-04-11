@@ -39,6 +39,9 @@ import {
 import TaskModal from "../components/TaskModal";
 import { useTheme } from "../components/ThemeContext";
 
+// ---------------- CREDIT MAP ----------------
+const CREDITS = { high: 4, medium: 3, low: 1, none: 0 };
+
 // ---------------- SORTABLE TASK ROW ----------------
 function SortableTask({ task, onToggle, onDelete, showDate }) {
   const {
@@ -77,7 +80,7 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      className="flex items-start gap-3 py-4 ..."
+      className="flex items-start gap-3 py-4 border-b border-border-subtle group last:border-b-0"
     >
       {/* Drag Handle */}
       <div
@@ -227,12 +230,29 @@ function Home() {
   );
 
   const completedTasks = useMemo(
-    () => tasks.filter((t) => t.completed),
+    () => tasks.filter((t) => t.completed && !t.archived),
     [tasks],
   );
 
-  const completionPct = tasks.length
-    ? Math.round((completedTasks.length / tasks.length) * 100)
+  // Non-archived tasks are the ones that count toward efficiency
+  const activeTasks = useMemo(
+    () => tasks.filter((t) => !t.archived),
+    [tasks],
+  );
+
+  // Credit-based efficiency — archived tasks excluded
+  const totalCredits = useMemo(
+    () => activeTasks.reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
+    [activeTasks],
+  );
+
+  const earnedCredits = useMemo(
+    () => completedTasks.reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
+    [completedTasks],
+  );
+
+  const completionPct = totalCredits > 0
+    ? Math.round((earnedCredits / totalCredits) * 100)
     : 0;
 
   // ---------------- ACTIONS ----------------
@@ -269,7 +289,6 @@ function Home() {
 
   const handleToggle = async (task) => {
     await completeTask(task.id);
-
     fetchTasks();
   };
 
@@ -339,15 +358,16 @@ function Home() {
       id: "settings",
       label: "Settings",
       icon: <Settings size={15} />,
-      onClick: () => {navigate("/settings"); setActiveNav("settings")},
+      onClick: () => { navigate("/setting"); setActiveNav("settings"); },
     },
   ];
 
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
+
       {/* ============ MOBILE TOP BAR ============ */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background sticky top-0 z-20">
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div>
           <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted">
             {todayLabel}
@@ -374,7 +394,7 @@ function Home() {
 
       {/* Mobile search bar (toggleable) */}
       {showMobileSearch && (
-        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background sticky top-[57px] z-10">
+        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-[57px] z-10">
           <div className="relative">
             <Search
               size={13}
@@ -393,7 +413,7 @@ function Home() {
 
       {/* ============ MOBILE FILTER CHIPS ============ */}
       <div
-        className="lg:hidden flex items-center gap-2 px-4 py-2 border-b border-border-subtle bg-background overflow-x-auto sticky top-[57px] z-10"
+        className="lg:hidden flex items-center gap-2 px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md overflow-x-auto sticky top-[57px] z-10"
         style={{ scrollbarWidth: "none" }}
       >
         {[
@@ -431,8 +451,7 @@ function Home() {
       </div>
 
       {/* ============ DESKTOP SIDEBAR ============ */}
-      <aside className="hidden lg:flex w-48 flex-shrink-0 border-r border-border-subtle flex-col py-6 px-4 bg-background sticky top-0 h-screen">
-        {/* Brand */}
+      <aside className="hidden lg:flex w-48 flex-shrink-0 border-r border-border-subtle flex-col py-6 px-4 bg-background/80 backdrop-blur-md sticky top-0 h-screen">
         <div className="mb-8 px-2">
           <p className="font-semi-bold font-serif text-text-main tracking-tight">
             My Workspace
@@ -441,8 +460,6 @@ function Home() {
             Task Master
           </p>
         </div>
-
-        {/* Nav */}
         <nav className="flex flex-col gap-1 flex-1">
           {navItems.map((item) => (
             <button
@@ -464,8 +481,6 @@ function Home() {
             </button>
           ))}
         </nav>
-
-        {/* New Entry Button */}
         <button
           onClick={() => setIsCreatedModalOpen(true)}
           className="flex items-center gap-2 px-3 py-2.5 bg-primary text-background rounded-xl text-xs font-serif font-semibold hover:opacity-80 transition-all mt-4"
@@ -477,8 +492,9 @@ function Home() {
 
       {/* ============ MAIN CONTENT ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
         {/* DESKTOP TOP BAR */}
-        <header className="hidden lg:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 lg:px-8 py-4 border-b border-border-subtle bg-background sticky top-0 z-10">
+        <header className="hidden lg:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 lg:px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
           <div>
             <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted">
               {todayLabel}
@@ -494,15 +510,12 @@ function Home() {
             >
               {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
             </button>
-            {/* Filter chips */}
             <div className="flex flex-wrap items-center gap-2">
               {[
                 { label: "Today", value: todayStr },
                 {
                   label: "Tomorrow",
-                  value: new Date(Date.now() + 86400000)
-                    .toISOString()
-                    .split("T")[0],
+                  value: new Date(Date.now() + 86400000).toISOString().split("T")[0],
                 },
                 { label: "All", value: "" },
               ].map((item) => (
@@ -519,8 +532,6 @@ function Home() {
                 </button>
               ))}
             </div>
-
-            {/* Category filter */}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -533,8 +544,6 @@ function Home() {
                 </option>
               ))}
             </select>
-
-            {/* Search */}
             <div className="relative">
               <Search
                 size={13}
@@ -547,8 +556,6 @@ function Home() {
                 className="h-8 pl-8 pr-3 bg-card border border-border-subtle rounded-full text-xs text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors font-sans w-full sm:w-40"
               />
             </div>
-
-            {/* Filter icon */}
             <button className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted hover:border-text-muted hover:text-text-main transition-colors">
               <SlidersHorizontal size={14} />
             </button>
@@ -557,9 +564,11 @@ function Home() {
 
         {/* TWO-COLUMN CONTENT */}
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-          {/* ---- TASK JOURNAL (main col) ---- */}
+
+          {/* ---- TASK JOURNAL ---- */}
           <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 lg:pb-8">
-            {/* Hero headline */}
+
+            {/* Hero */}
             <div className="mb-8">
               <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-2">
                 Current Session
@@ -572,6 +581,7 @@ function Home() {
 
             {/* ---- MOBILE: Next Priority + Efficiency ---- */}
             <div className="lg:hidden flex flex-col gap-3 mb-8">
+
               {/* Next Priority card */}
               <div className="bg-warn rounded-xl p-4">
                 <p className="font-bold text-[9px] font-serif uppercase tracking-[0.18em] text-background mb-1">
@@ -609,10 +619,16 @@ function Home() {
                     style={{ width: `${completionPct}%` }}
                   />
                 </div>
-                <p className="text-[10px] font-sans text-text-muted mt-2">
-                  {completedTasks.length} of {tasks.length} tasks completed this
-                  session.
-                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <p className="text-[10px] font-sans text-text-muted">
+                    {earnedCredits} / {totalCredits} credits
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-text-main text-background">H·4</span>
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">M·3</span>
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">L·1</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -709,16 +725,15 @@ function Home() {
           </main>
 
           {/* ---- DESKTOP RIGHT PANEL ---- */}
-          <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-8 flex-col gap-7 bg-background overflow-y-auto">
+          <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-8 flex-col gap-7 bg-background/80 backdrop-blur-md overflow-y-auto">
+
             {/* Efficiency */}
             <div>
               <p className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted mb-3">
                 Task Efficiency
               </p>
               <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[10px] font-sans text-text-muted">
-                  Completed
-                </span>
+                <span className="text-[10px] font-sans text-text-muted">Credits earned</span>
                 <span className="text-[11px] font-sans font-semibold text-text-main">
                   {completionPct}%
                 </span>
@@ -729,15 +744,36 @@ function Home() {
                   style={{ width: `${completionPct}%` }}
                 />
               </div>
-              <p className="text-[10px] font-sans text-text-muted mt-2.5 leading-relaxed">
-                {completedTasks.length} of {tasks.length} tasks completed this
-                session.
+              <p className="text-[10px] font-sans text-text-muted mt-2 leading-relaxed">
+                {earnedCredits} of {totalCredits} credits · {completedTasks.length} tasks done
               </p>
+
+              {/* Credit legend */}
+              <div className="mt-3 flex flex-col gap-1.5">
+                {[
+                  { label: "High priority",   credit: 4, key: "high" },
+                  { label: "Medium priority", credit: 3, key: "medium" },
+                  { label: "Low priority",    credit: 1, key: "low" },
+                  { label: "No priority",     credit: 0, key: "none" },
+                ].map((row) => {
+                  const hasAny = activeTasks.some((t) => t.priority === row.key);
+                  return (
+                    <div key={row.key} className="flex items-center justify-between">
+                      <span className={`text-[10px] font-sans ${hasAny ? "text-text-muted" : "text-text-muted/30"}`}>
+                        · {row.label}
+                      </span>
+                      <span className={`text-[10px] font-sans font-semibold ${hasAny ? "text-text-main" : "text-text-muted/30"}`}>
+                        {row.credit} cr
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Next Priority — dark card */}
+            {/* Next Priority — warm card */}
             <div className="bg-warn rounded-xl p-4">
-              <p className="font-bold  font-serif uppercase tracking-[0.18em] text-text mb-2">
+              <p className="font-bold font-serif uppercase tracking-[0.18em] text-text mb-2">
                 Next Priority
               </p>
               {tasksDueToday[0] ? (
@@ -764,7 +800,7 @@ function Home() {
               <div className="flex flex-col gap-1.5">
                 {categories.slice(0, 6).map((cat) => {
                   const count = tasks.filter(
-                    (t) => t.category_name === cat.name && !t.completed,
+                    (t) => t.category_name === cat.name && !t.completed && !t.archived,
                   ).length;
                   return (
                     <button
@@ -797,7 +833,7 @@ function Home() {
               </p>
               <div className="flex flex-col gap-2.5">
                 {tasks
-                  .filter((t) => !t.completed && t.end_date)
+                  .filter((t) => !t.completed && !t.archived && t.end_date)
                   .sort((a, b) => a.end_date.localeCompare(b.end_date))
                   .slice(0, 4)
                   .map((t) => (
@@ -812,8 +848,7 @@ function Home() {
                           {Math.max(
                             0,
                             Math.ceil(
-                              (new Date(t.end_date) - new Date(todayStr)) /
-                                86400000,
+                              (new Date(t.end_date) - new Date(todayStr)) / 86400000,
                             ),
                           )}{" "}
                           days
@@ -836,7 +871,7 @@ function Home() {
       </button>
 
       {/* ============ MOBILE BOTTOM NAV ============ */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background/80 backdrop-blur-md">
         {navItems.map((item) => (
           <button
             key={item.id}
