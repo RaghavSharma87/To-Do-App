@@ -358,7 +358,7 @@ function Home() {
       id: "settings",
       label: "Settings",
       icon: <Settings size={15} />,
-      onClick: () => { navigate("/setting"); setActiveNav("settings"); },
+      onClick: () => { navigate("/settings"); setActiveNav("settings"); },
     },
   ];
 
