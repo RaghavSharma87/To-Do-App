@@ -31,6 +31,7 @@ import {
   getTasks,
   createTask,
   patchTask,
+  completeTask,
   deleteTask,
   getCategories,
   reorderTasks,
@@ -267,10 +268,8 @@ function Home() {
   };
 
   const handleToggle = async (task) => {
-    await patchTask(task.id, {
-      completed: !task.completed,
-      archived: !task.completed,
-    });
+    await completeTask(task.id);
+    
     fetchTasks();
   };
 

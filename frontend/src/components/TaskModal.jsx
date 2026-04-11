@@ -377,7 +377,7 @@ function TaskModal({
             {/* Custom Days Selector */}
             {frequency === "weekdays" && (
               <div className="mt-4 flex flex-wrap gap-2">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
                   (day, idx) => {
                     const isSelected = frequencyDays.includes(idx);
 
