@@ -80,13 +80,15 @@ function Categories() {
       onClick: () => setActiveNav("bin"),
     },
     {
-      id: "settings", label: "Settings", icon: <Settings size={15} />,
-      onClick: () => setActiveNav("settings"),
+      id: "settings",
+      label: "Settings",
+      icon: <Settings size={15} />,
+      onClick: () => {navigate("/settings"); setActiveNav("settings")},
     },
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-background transition-colors duration-500 font-serif">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
 
       {/* ===== MOBILE TOP BAR ===== */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background sticky top-0 z-20">

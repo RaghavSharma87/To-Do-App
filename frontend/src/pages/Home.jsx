@@ -69,16 +69,16 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
   const badge = priorityBadge[task.priority];
 
   return (
-<motion.div
-  ref={setNodeRef}
-  style={style}
-  layout
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -10 }}
-  transition={{ duration: 0.2 }}
-  className="flex items-start gap-3 py-4 ..."
->
+    <motion.div
+      ref={setNodeRef}
+      style={style}
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-start gap-3 py-4 ..."
+    >
       {/* Drag Handle */}
       <div
         {...attributes}
@@ -269,7 +269,7 @@ function Home() {
 
   const handleToggle = async (task) => {
     await completeTask(task.id);
-    
+
     fetchTasks();
   };
 
@@ -339,13 +339,13 @@ function Home() {
       id: "settings",
       label: "Settings",
       icon: <Settings size={15} />,
-      onClick: () => setActiveNav("settings"),
+      onClick: () => {navigate("/settings"); setActiveNav("settings")},
     },
   ];
 
   // ---------------- UI ----------------
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-background transition-colors duration-500 font-serif">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
       {/* ============ MOBILE TOP BAR ============ */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background sticky top-0 z-20">
         <div>
@@ -637,15 +637,15 @@ function Home() {
                     strategy={verticalListSortingStrategy}
                   >
                     <AnimatePresence>
-                    {tasksDueToday.map((task) => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        onToggle={handleToggle}
-                        onDelete={handleDelete}
-                        showDate={false}
-                      />
-                    ))}
+                      {tasksDueToday.map((task) => (
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggle}
+                          onDelete={handleDelete}
+                          showDate={false}
+                        />
+                      ))}
                     </AnimatePresence>
                   </SortableContext>
                 </DndContext>
@@ -673,15 +673,15 @@ function Home() {
                     strategy={verticalListSortingStrategy}
                   >
                     <AnimatePresence>
-                    {otherTasks.map((task) => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        onToggle={handleToggle}
-                        onDelete={handleDelete}
-                        showDate={true}
-                      />
-                    ))}
+                      {otherTasks.map((task) => (
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggle}
+                          onDelete={handleDelete}
+                          showDate={true}
+                        />
+                      ))}
                     </AnimatePresence>
                   </SortableContext>
                 </DndContext>

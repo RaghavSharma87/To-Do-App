@@ -56,6 +56,13 @@
   .nav-link {
     @apply text-xs uppercase tracking-[0.2em] font-medium text-text-muted hover:text-text-main transition-all duration-300;
   }
+  .bg-wrapper-active {
+  min-height: 100vh;
+}
+
+.bg-wrapper-active > * {
+  background: transparent !important;
+}
 }
 
 @layer base {
