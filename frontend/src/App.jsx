@@ -5,31 +5,39 @@ import NavBar from "./components/NavBar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Landing from "./pages/LandingPage";
 import Categories from "./pages/Categories";
+import Archive from "./pages/Archive";
+import Setting from "./pages/Setting";
+import BackgroundWrapper from "./components/BackgroundWrapper";
 import {
   BrowserRouter,
   Route,
   Routes,
-  Navigate,
   useLocation,
 } from "react-router-dom";
+
 function Layout() {
   const location = useLocation();
 
-  // Hide the global navbar on both Auth and Landing pages
-  const hideNavbar = ["/auth", "/"].includes(location.pathname);
+  const hideNavbar = ["/auth", "/", "/home", "/categories", "/archive", "/settings"].includes(
+    location.pathname,
+  );
 
   return (
     <>
       {!hideNavbar && <NavBar />}
 
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<BackgroundWrapper><Landing /></BackgroundWrapper>} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/settings" element={<BackgroundWrapper><Setting /></BackgroundWrapper>} />
+
         <Route
           path="/home"
           element={
             <ProtectedRoute>
-              <Home />
+              <BackgroundWrapper>
+                <Home />
+              </BackgroundWrapper>
             </ProtectedRoute>
           }
         />
@@ -37,7 +45,19 @@ function Layout() {
           path="/categories"
           element={
             <ProtectedRoute>
-              <Categories />
+              <BackgroundWrapper>
+                <Categories />
+              </BackgroundWrapper>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/archive"
+          element={
+            <ProtectedRoute>
+              <BackgroundWrapper>
+                <Archive />
+              </BackgroundWrapper>
             </ProtectedRoute>
           }
         />
@@ -45,9 +65,10 @@ function Layout() {
     </>
   );
 }
+
 function App() {
   return (
-    <ThemeProvider> 
+    <ThemeProvider>
       <BrowserRouter>
         <Layout />
       </BrowserRouter>

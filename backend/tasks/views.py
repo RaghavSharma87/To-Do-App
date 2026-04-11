@@ -8,8 +8,32 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta, datetime
 # Create your views here.
 
+def next_weekday(date):
+    next_date=date+timedelta(days=1)
+    while next_date.weekday() >= 5:
+        next_date+=timedelta(days=1)
+    return next_date
+
+def next_weekend(date):
+    next_date = date + timedelta(days=1)
+    while next_date.weekday() not in [5, 6]:
+        next_date += timedelta(days=1)
+    return next_date
+
+def next_custom_day(date, selected_days):
+    """
+    selected_days:
+    Monday=0 ... Sunday=6
+    """
+    next_date = date + timedelta(days=1)
+
+    while next_date.weekday() not in selected_days:
+        next_date += timedelta(days=1)
+
+    return next_date
 
 class RegisterUserAPIView(APIView):
 
@@ -39,7 +63,7 @@ class LoginAPIView(TokenObtainPairView):
 class CategoryDeleteAPIView(APIView):
     def delete(self, request, pk):
         try:
-            category = Category.objects.get(pk=pk)
+            category = Category.objects.get(pk=pk, user=request.user)
         except Category.DoesNotExist:
             return Response({"error": "Not Found"}, status=404)
 
@@ -68,7 +92,11 @@ class TaskListCreateAPIView(APIView):
     permission_classes=[IsAuthenticated]
 
     def get(self, request):
-        tasks = Task.objects.filter(user=request.user).order_by('order')
+        archived=request.GET.get("archived")
+        if archived == "true":
+            tasks=Task.objects.filter(user=request.user, archived=True).order_by('order')
+        else:
+            tasks=Task.objects.filter(user=request.user, archived=False).order_by('order')
         # filters
         category = request.GET.get("category")
         person = request.GET.get("person")
@@ -94,11 +122,13 @@ class TaskListCreateAPIView(APIView):
 
 
 class TaskDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get_object(self, pk):
-        return get_object_or_404(Task, pk=pk)
+        return get_object_or_404(Task, pk=pk, user=self.request.user)
 
     def get(self, request, pk):
-        task = self.get_object(pk)
+        task = self.get_object(pk, user=request.user)
         serializer = TaskSerializer(task)
         return Response(serializer.data)
 
@@ -119,7 +149,7 @@ class TaskDetailAPIView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        task = self.get_object(pk)
+        task = self.get_object(pk, user=request.user)
         task.delete()
         return Response({"message": "Deleted"}, status=204)
 
@@ -132,3 +162,54 @@ class TaskReorderAPIView(APIView):
         return Response({'status':'ok'})
         
     
+class TaskCompleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        task = get_object_or_404(Task, pk=pk, user=request.user)
+
+        # complete current occurrence
+        task.completed = True
+        task.archived = True
+        task.save()
+
+        # one-time task → stop here
+        if task.frequency == "once":
+            return Response({"message": "Task archived"})
+
+        current_date = task.end_date
+
+        # determine next date
+        if task.frequency == "daily":
+            next_date = current_date + timedelta(days=1)
+
+        elif task.frequency == "weekdays":
+            next_date = next_weekday(current_date)
+
+        elif task.frequency == "weekends":
+            next_date = next_weekend(current_date)
+
+        elif task.frequency == "custom":
+            next_date = next_custom_day(current_date, task.frequency_days)
+
+        else:
+            next_date = current_date + timedelta(days=1)
+
+        # create next occurrence
+        Task.objects.create(
+            user=task.user,
+            title=task.title,
+            category=task.category,
+            person=task.person,
+            priority=task.priority,
+            frequency=task.frequency,
+            frequency_days=task.frequency_days,
+            start_date=next_date,
+            end_date=next_date,
+            end_time=task.end_time,
+            completed=False,
+            archived=False,
+            order=task.order,
+        )
+
+        return Response({"message": "Recurring task completed"})

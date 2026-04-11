@@ -7,6 +7,7 @@
   --color-background: #F9F8F6; 
   --color-border-subtle: #E8E5E0;
   --color-card: #FFFFFF;
+  --color-warn:#FF5C5C;
   --color-primary: #18181B;
   --color-primary-hover: #333733;
   --color-text-main: #1C1917;
@@ -23,6 +24,7 @@
   --color-text-main: #FAFAFA;      /* Off-white */
   --color-text-muted: #A1A1AA;     /* Gray-400 */
   --color-primary: #F4F4F5;        /* White-ish CTA */
+  --color-warn:#FF5C5C;
 }
 
 @layer components {
@@ -54,6 +56,13 @@
   .nav-link {
     @apply text-xs uppercase tracking-[0.2em] font-medium text-text-muted hover:text-text-main transition-all duration-300;
   }
+  .bg-wrapper-active {
+  min-height: 100vh;
+}
+
+.bg-wrapper-active > * {
+  background: transparent !important;
+}
 }
 
 @layer base {
