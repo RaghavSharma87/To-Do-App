@@ -171,6 +171,7 @@ function Home() {
   const [filterDate, seetFilterDate] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [allTasks, setAllTasks]=useState([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayLabel = new Date()
@@ -187,6 +188,10 @@ function Home() {
     const res = await getTasks(query);
     setTasks(res.data);
   };
+  const fetchAllTasksForAnalytics=async() =>{
+    const res=await getTasks("?include_archived=true");
+    setAllTasks(res.data);
+  }
 
   const fetchCategories = async () => {
     const res = await getCategories();
@@ -199,6 +204,7 @@ function Home() {
   useEffect(() => {
     fetchTasks();
     fetchCategories();
+    fetchAllTasksForAnalytics();
   }, []);
 
   useEffect(() => {
@@ -233,27 +239,40 @@ function Home() {
     () => tasks.filter((t) => t.completed && !t.archived),
     [tasks],
   );
+  const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks]);
 
-  // Non-archived tasks are the ones that count toward efficiency
-  const activeTasks = useMemo(
-    () => tasks.filter((t) => !t.archived),
-    [tasks],
-  );
+  const tomorrowStr = new Date(Date.now() + 86400000)
+    .toISOString()
+    .split("T")[0];
 
-  // Credit-based efficiency — archived tasks excluded
+  const efficiencyTasks = useMemo(() => {
+    if (filterDate === todayStr) {
+      return tasks.filter((t) => t.end_date === todayStr);
+    }
+
+    if (filterDate === tomorrowStr) {
+      return tasks.filter((t) => t.end_date === tomorrowStr);
+    }
+
+    return allTasks; // All tasks including archived
+  }, [tasks, filterDate, todayStr, tomorrowStr]);
+
   const totalCredits = useMemo(
-    () => activeTasks.reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
-    [activeTasks],
+    () =>
+      efficiencyTasks.reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
+    [efficiencyTasks],
   );
 
   const earnedCredits = useMemo(
-    () => completedTasks.reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
-    [completedTasks],
+    () =>
+      efficiencyTasks
+        .filter((t) => t.completed)
+        .reduce((sum, t) => sum + (CREDITS[t.priority] ?? 0), 0),
+    [efficiencyTasks],
   );
 
-  const completionPct = totalCredits > 0
-    ? Math.round((earnedCredits / totalCredits) * 100)
-    : 0;
+  const completionPct =
+    totalCredits > 0 ? Math.round((earnedCredits / totalCredits) * 100) : 0;
 
   // ---------------- ACTIONS ----------------
   const handleSubmit = async (e) => {
@@ -290,6 +309,7 @@ function Home() {
   const handleToggle = async (task) => {
     await completeTask(task.id);
     fetchTasks();
+    fetchAllTasksForAnalytics();
   };
 
   const handleDelete = async (id) => {
@@ -358,14 +378,16 @@ function Home() {
       id: "settings",
       label: "Settings",
       icon: <Settings size={15} />,
-      onClick: () => { navigate("/settings"); setActiveNav("settings"); },
+      onClick: () => {
+        navigate("/settings");
+        setActiveNav("settings");
+      },
     },
   ];
 
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
-
       {/* ============ MOBILE TOP BAR ============ */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div>
@@ -492,7 +514,6 @@ function Home() {
 
       {/* ============ MAIN CONTENT ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* DESKTOP TOP BAR */}
         <header className="hidden lg:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 lg:px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
           <div>
@@ -515,7 +536,9 @@ function Home() {
                 { label: "Today", value: todayStr },
                 {
                   label: "Tomorrow",
-                  value: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+                  value: new Date(Date.now() + 86400000)
+                    .toISOString()
+                    .split("T")[0],
                 },
                 { label: "All", value: "" },
               ].map((item) => (
@@ -564,10 +587,8 @@ function Home() {
 
         {/* TWO-COLUMN CONTENT */}
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-
           {/* ---- TASK JOURNAL ---- */}
           <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 lg:pb-8">
-
             {/* Hero */}
             <div className="mb-8">
               <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-2">
@@ -581,7 +602,6 @@ function Home() {
 
             {/* ---- MOBILE: Next Priority + Efficiency ---- */}
             <div className="lg:hidden flex flex-col gap-3 mb-8">
-
               {/* Next Priority card */}
               <div className="bg-warn rounded-xl p-4">
                 <p className="font-bold text-[9px] font-serif uppercase tracking-[0.18em] text-background mb-1">
@@ -624,9 +644,15 @@ function Home() {
                     {earnedCredits} / {totalCredits} credits
                   </p>
                   <div className="flex items-center gap-1">
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-text-main text-background">H·4</span>
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">M·3</span>
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">L·1</span>
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-text-main text-background">
+                      H·4
+                    </span>
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">
+                      M·3
+                    </span>
+                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">
+                      L·1
+                    </span>
                   </div>
                 </div>
               </div>
@@ -726,14 +752,15 @@ function Home() {
 
           {/* ---- DESKTOP RIGHT PANEL ---- */}
           <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-8 flex-col gap-7 bg-background/80 backdrop-blur-md overflow-y-auto">
-
             {/* Efficiency */}
             <div>
               <p className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted mb-3">
                 Task Efficiency
               </p>
               <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[10px] font-sans text-text-muted">Credits earned</span>
+                <span className="text-[10px] font-sans text-text-muted">
+                  Credits earned
+                </span>
                 <span className="text-[11px] font-sans font-semibold text-text-main">
                   {completionPct}%
                 </span>
@@ -745,24 +772,34 @@ function Home() {
                 />
               </div>
               <p className="text-[10px] font-sans text-text-muted mt-2 leading-relaxed">
-                {earnedCredits} of {totalCredits} credits · {completedTasks.length} tasks done
+                {earnedCredits} of {totalCredits} credits ·{" "}
+                {completedTasks.length} tasks done
               </p>
 
               {/* Credit legend */}
               <div className="mt-3 flex flex-col gap-1.5">
                 {[
-                  { label: "High priority",   credit: 4, key: "high" },
+                  { label: "High priority", credit: 4, key: "high" },
                   { label: "Medium priority", credit: 3, key: "medium" },
-                  { label: "Low priority",    credit: 1, key: "low" },
-                  { label: "No priority",     credit: 0, key: "none" },
+                  { label: "Low priority", credit: 1, key: "low" },
+                  { label: "No priority", credit: 0, key: "none" },
                 ].map((row) => {
-                  const hasAny = activeTasks.some((t) => t.priority === row.key);
+                  const hasAny = activeTasks.some(
+                    (t) => t.priority === row.key,
+                  );
                   return (
-                    <div key={row.key} className="flex items-center justify-between">
-                      <span className={`text-[10px] font-sans ${hasAny ? "text-text-muted" : "text-text-muted/30"}`}>
+                    <div
+                      key={row.key}
+                      className="flex items-center justify-between"
+                    >
+                      <span
+                        className={`text-[10px] font-sans ${hasAny ? "text-text-muted" : "text-text-muted/30"}`}
+                      >
                         · {row.label}
                       </span>
-                      <span className={`text-[10px] font-sans font-semibold ${hasAny ? "text-text-main" : "text-text-muted/30"}`}>
+                      <span
+                        className={`text-[10px] font-sans font-semibold ${hasAny ? "text-text-main" : "text-text-muted/30"}`}
+                      >
                         {row.credit} cr
                       </span>
                     </div>
@@ -800,7 +837,10 @@ function Home() {
               <div className="flex flex-col gap-1.5">
                 {categories.slice(0, 6).map((cat) => {
                   const count = tasks.filter(
-                    (t) => t.category_name === cat.name && !t.completed && !t.archived,
+                    (t) =>
+                      t.category_name === cat.name &&
+                      !t.completed &&
+                      !t.archived,
                   ).length;
                   return (
                     <button
@@ -848,7 +888,8 @@ function Home() {
                           {Math.max(
                             0,
                             Math.ceil(
-                              (new Date(t.end_date) - new Date(todayStr)) / 86400000,
+                              (new Date(t.end_date) - new Date(todayStr)) /
+                                86400000,
                             ),
                           )}{" "}
                           days

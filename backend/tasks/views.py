@@ -92,8 +92,11 @@ class TaskListCreateAPIView(APIView):
     permission_classes=[IsAuthenticated]
 
     def get(self, request):
+        include_archived=request.GET.get("include_archived")
         archived=request.GET.get("archived")
-        if archived == "true":
+        if include_archived == "true":
+            tasks=Task.objects.filter(user=request.user).order_by('order')
+        elif archived == "true":
             tasks=Task.objects.filter(user=request.user, archived=True).order_by('order')
         else:
             tasks=Task.objects.filter(user=request.user, archived=False).order_by('order')
