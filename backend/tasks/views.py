@@ -131,7 +131,7 @@ class TaskDetailAPIView(APIView):
         return get_object_or_404(Task, pk=pk, user=self.request.user)
 
     def get(self, request, pk):
-        task = self.get_object(pk, user=request.user)
+        task = self.get_object(pk)
         serializer = TaskSerializer(task)
         return Response(serializer.data)
 
@@ -152,7 +152,7 @@ class TaskDetailAPIView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        task = self.get_object(pk, user=request.user)
+        task = self.get_object(pk)
         task.delete()
         return Response({"message": "Deleted"}, status=204)
 
