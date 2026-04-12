@@ -164,8 +164,7 @@ function Home() {
   const [searchPerson, setSearchPerson] = useState("");
   const [frequency, setFrequency] = useState("once");
   const [frequencyDays, setFrequencyDays] = useState([]);
-  const [hour, setHour] = useState(12);
-  const [minute, setMinute] = useState(0);
+
   const [priority, setPriority] = useState("none");
 
   const [filterDate, seetFilterDate] = useState("");
@@ -275,7 +274,7 @@ function Home() {
     totalCredits > 0 ? Math.round((earnedCredits / totalCredits) * 100) : 0;
 
   // ---------------- ACTIONS ----------------
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e,timeStr) => {
     e.preventDefault();
     if (!title.trim() || !selectedCategoryId) return;
 
@@ -286,7 +285,7 @@ function Home() {
       person: person || "Unassigned",
       start_date: startDate || todayStr,
       end_date: endDate || todayStr,
-      end_time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+      end_time: timeStr,
       frequency,
       frequency_days: frequencyDays,
       priority,
@@ -299,8 +298,7 @@ function Home() {
     setSearchPerson("");
     setFrequency("once");
     setFrequencyDays([]);
-    setHour(12);
-    setMinute(0);
+
     setPriority("none");
     setIsCreatedModalOpen(false);
     fetchTasks();
@@ -954,10 +952,6 @@ function Home() {
           setFrequencyDays={setFrequencyDays}
           priority={priority}
           setPriority={setPriority}
-          hour={hour}
-          setHour={setHour}
-          minute={minute}
-          setMinute={setMinute}
         />
       )}
     </div>

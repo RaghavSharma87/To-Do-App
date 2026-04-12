@@ -62,7 +62,10 @@ function TaskModal({
 
   const handleSubmitWithTime = (e) => {
     e.preventDefault();
-    const timeStr = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${isAM ? "AM" : "PM"}`;
+    let h=hour;
+    if(!isAM && hour ==12 ) h=hour+12;
+    if(isAM && hour==12) h=0;
+    const timeStr = `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
     onSubmit(e, timeStr);
   };
 
