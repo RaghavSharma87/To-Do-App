@@ -135,9 +135,14 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 
       {/* Delete */}
       <button
-        onClick={() => onDelete(task.id)}
-        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-text-muted hover:text-red-400 mt-0.5 flex-shrink-0"
-      >
+  onClick={(e) => {
+    e.stopPropagation();
+    onDelete(task.id);
+  }}
+  className="opacity-60 md:opacity-0 md:group-hover:opacity-60 hover:!opacity-100 transition-opacity text-text-muted hover:text-red-400 mt-0.5 flex-shrink-0"
+>
+  <Trash2 size={14} />
+</button>
         <Trash2 size={14} />
       </button>
     </motion.div>
