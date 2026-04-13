@@ -12,6 +12,7 @@ import {
   Settings,
   GripVertical,
   SlidersHorizontal,
+  ArrowBigLeft
 } from "lucide-react";
 import {
   DndContext,
@@ -30,13 +31,13 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   getTasks,
   createTask,
-  patchTask,
   completeTask,
   deleteTask,
   getCategories,
   reorderTasks,
 } from "../api";
 import TaskModal from "../components/TaskModal";
+
 import { useTheme } from "../components/ThemeContext";
 
 // ---------------- CREDIT MAP ----------------
@@ -172,10 +173,11 @@ function Home() {
 
   const [priority, setPriority] = useState("none");
 
-  const [filterDate, seetFilterDate] = useState("");
+  // BUG FIX: typo `seetFilterDate` → `setFilterDate` (consistent naming)
+  const [filterDate, setFilterDate] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  const [allTasks, setAllTasks]=useState([]);
+  const [allTasks, setAllTasks] = useState([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayLabel = new Date()
@@ -189,19 +191,36 @@ function Home() {
 
   // ---------------- FETCH ----------------
   const fetchTasks = async (query = "") => {
-    const res = await getTasks(query);
-    setTasks(res.data);
+    try {
+      const res = await getTasks(query);
+      setTasks(res.data);
+    } catch (err) {
+      console.error("Failed to fetch tasks", err);
+    }
   };
-  const fetchAllTasksForAnalytics=async() =>{
-    const res=await getTasks("?include_archived=true");
-    setAllTasks(res.data);
-  }
+
+  const fetchAllTasksForAnalytics = async () => {
+    try {
+      // BUG FIX: was passing the full query string "?include_archived=true" as
+      // the params object — getTasks() uses URLSearchParams so this ended up as
+      // `tasks/??include_archived=true` (double question mark).
+      // Pass a plain object instead so the helper builds the query correctly.
+      const res = await getTasks({ include_archived: "true" });
+      setAllTasks(res.data);
+    } catch (err) {
+      console.error("Failed to fetch all tasks", err);
+    }
+  };
 
   const fetchCategories = async () => {
-    const res = await getCategories();
-    setCategories(res.data);
-    if (res.data.length > 0 && !selectedCategoryId) {
-      setSelectedCategoryId(res.data[0].id);
+    try {
+      const res = await getCategories();
+      setCategories(res.data);
+      if (res.data.length > 0 && !selectedCategoryId) {
+        setSelectedCategoryId(res.data[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch categories", err);
     }
   };
 
@@ -209,15 +228,16 @@ function Home() {
     fetchTasks();
     fetchCategories();
     fetchAllTasksForAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const delay = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (searchPerson) params.append("person", searchPerson);
-      if (filterDate) params.append("date", filterDate);
-      if (filterCategory) params.append("category", filterCategory);
-      fetchTasks(`?${params.toString()}`);
+      const params = {};
+      if (searchPerson) params.person = searchPerson;
+      if (filterDate) params.date = filterDate;
+      if (filterCategory) params.category = filterCategory;
+      fetchTasks(params);
     }, 300);
     return () => clearTimeout(delay);
   }, [searchPerson, filterCategory, filterDate]);
@@ -253,13 +273,11 @@ function Home() {
     if (filterDate === todayStr) {
       return tasks.filter((t) => t.end_date === todayStr);
     }
-
     if (filterDate === tomorrowStr) {
       return tasks.filter((t) => t.end_date === tomorrowStr);
     }
-
-    return allTasks; // All tasks including archived
-  }, [tasks, filterDate, todayStr, tomorrowStr]);
+    return allTasks;
+  }, [tasks, allTasks, filterDate, todayStr, tomorrowStr]);
 
   const totalCredits = useMemo(
     () =>
@@ -279,55 +297,97 @@ function Home() {
     totalCredits > 0 ? Math.round((earnedCredits / totalCredits) * 100) : 0;
 
   // ---------------- ACTIONS ----------------
-  const handleSubmit = async (e,timeStr) => {
+  const handleSubmit = async (e, timeStr, customDates = []) => {
     e.preventDefault();
-    if (!title.trim() ) return;
+    if (!title.trim()) return;
 
-    await createTask({
-      title,
-      completed: false,
-      category: selectedCategoryId || null ,
-      person: person || "Unassigned",
-      start_date: startDate || todayStr,
-      end_date: endDate || todayStr,
-      end_time: timeStr,
-      frequency,
-      frequency_days: frequencyDays,
-      priority,
-    });
+    // BUG FIX: for "weekly" frequency, require at least one day to be selected.
+    if (frequency === "weekly" && frequencyDays.length === 0) {
+      alert("Please select at least one day for the weekly frequency.");
+      return;
+    }
 
-    setTitle("");
-    setPerson("");
-    setStartDate("");
-    setEndDate("");
-    setSearchPerson("");
-    setFrequency("once");
-    setFrequencyDays([]);
+    // BUG FIX: for "custom_dates" frequency, require at least one date.
+    if (frequency === "custom_dates" && customDates.length === 0) {
+      alert("Please select at least one date for the custom dates frequency.");
+      return;
+    }
 
-    setPriority("none");
-    setIsCreatedModalOpen(false);
-    fetchTasks();
+    // For custom_dates, use the first selected date as end_date so the backend
+    // creates the first occurrence correctly.
+    const resolvedEndDate =
+      frequency === "custom_dates" && customDates.length > 0
+        ? customDates.sort()[0]
+        : endDate || todayStr;
+
+    try {
+      await createTask({
+        title,
+        completed: false,
+        category: selectedCategoryId || null,
+        person: person || "Unassigned",
+        start_date: startDate || todayStr,
+        end_date: resolvedEndDate,
+        end_time: timeStr,
+        frequency,
+        frequency_days: frequencyDays,
+        custom_dates: customDates,
+        priority,
+      });
+
+      // Reset form state
+      setTitle("");
+      setPerson("");
+      setStartDate("");
+      setEndDate("");
+      setSearchPerson("");
+      setFrequency("once");
+      setFrequencyDays([]);
+      setPriority("none");
+      setIsCreatedModalOpen(false);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to create task", err);
+    }
   };
 
   const handleToggle = async (task) => {
-    await completeTask(task.id);
-    fetchTasks();
-    fetchAllTasksForAnalytics();
+    try {
+      await completeTask(task.id);
+      fetchTasks();
+      fetchAllTasksForAnalytics();
+    } catch (err) {
+      console.error("Failed to complete task", err);
+    }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this task?")) return;
-    await deleteTask(id);
-    fetchTasks();
+    try {
+      await deleteTask(id);
+      fetchTasks();
+    } catch (err) {
+      console.error("Failed to delete task", err);
+    }
   };
 
-  const handleDragEnd = async (event) => {
+  // BUG FIX: drag-and-drop was operating on the full `tasks` array but each
+  // DndContext only contains a subset (tasksDueToday or otherTasks).  When an
+  // item from "Due Today" was dragged, findIndex searched `tasks` and could
+  // match an index in the wrong section.  Now each handler receives the correct
+  // sub-list.
+  const makeHandleDragEnd = (list) => async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = tasks.findIndex((t) => t.id === active.id);
-    const newIndex = tasks.findIndex((t) => t.id === over.id);
-    const reordered = arrayMove(tasks, oldIndex, newIndex);
-    setTasks(reordered);
+    const oldIndex = list.findIndex((t) => t.id === active.id);
+    const newIndex = list.findIndex((t) => t.id === over.id);
+    const reordered = arrayMove(list, oldIndex, newIndex);
+    // Optimistic update
+    setTasks((prev) => {
+      const ids = new Set(list.map((t) => t.id));
+      const rest = prev.filter((t) => !ids.has(t.id));
+      return [...rest, ...reordered];
+    });
     await reorderTasks(reordered.map((t, i) => ({ id: t.id, order: i })));
   };
 
@@ -386,6 +446,13 @@ function Home() {
         setActiveNav("settings");
       },
     },
+    {
+      if:"back",
+      icon : <ArrowBigLeft size={15} />,
+      onClick:() =>{
+        navigate("/");
+      }
+    }
   ];
 
   // ---------------- UI ----------------
@@ -436,128 +503,78 @@ function Home() {
         </div>
       )}
 
-      {/* ============ MOBILE FILTER CHIPS ============ */}
-      <div
-        className="lg:hidden flex items-center gap-2 px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md overflow-x-auto sticky top-[57px] z-10"
-        style={{ scrollbarWidth: "none" }}
-      >
-        {[
-          { label: "Today", value: todayStr },
-          {
-            label: "Tomorrow",
-            value: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-          },
-          { label: "All", value: "" },
-        ].map((item) => (
-          <button
-            key={item.label}
-            onClick={() => seetFilterDate(item.value)}
-            className={`px-3 h-7 rounded-full text-xs font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
-              filterDate === item.value
-                ? "bg-primary text-background border-primary"
-                : "border-border-subtle text-text-muted"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-7 px-2 bg-card border border-border-subtle rounded-full text-xs text-text-muted font-sans outline-none flex-shrink-0"
-        >
-          <option value="">All Categories</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.name}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* ============ DESKTOP SIDEBAR ============ */}
-      <aside className="hidden lg:flex w-48 flex-shrink-0 border-r border-border-subtle flex-col py-6 px-4 bg-background/80 backdrop-blur-md sticky top-0 h-screen">
-        <div className="mb-8 px-2">
-          <p className="font-semi-bold font-serif text-text-main tracking-tight">
+      <div className="hidden lg:flex w-56 flex-shrink-0 border-r border-border-subtle flex-col px-5 py-8 gap-6 bg-background/80 backdrop-blur-md sticky top-0 h-screen overflow-y-auto">
+        <div>
+          <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-1">
+            {todayLabel}
+          </p>
+          <p className="text-sm font-bold font-serif text-text-main">
             My Workspace
           </p>
-          <p className="text-[10px] font-serif uppercase tracking-[0.18em] text-text-muted mt-0.5">
-            Task Master
-          </p>
         </div>
-        <nav className="flex flex-col gap-1 flex-1">
+
+        <nav className="flex flex-col gap-1">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={item.onClick}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-sans font-medium transition-all text-left w-full ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-sans transition-colors text-left ${
                 activeNav === item.id
-                  ? "bg-card text-text-main border border-border-subtle"
-                  : "text-text-muted hover:text-text-main hover:bg-card/60"
+                  ? "bg-border-subtle text-text-main font-semibold"
+                  : "text-text-muted hover:text-text-main"
               }`}
             >
-              <span className="flex-shrink-0">{item.icon}</span>
-              {item.label}
-              {item.id === "tasks" && tasksDueToday.length > 0 && (
-                <span className="ml-auto text-[10px] bg-text-main text-background rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {tasksDueToday.length}
-                </span>
-              )}
+              {item.icon}
+              {item.label === "My Tasks" ? "Tasks" : item.label}
             </button>
           ))}
         </nav>
-        <button
-          onClick={() => setIsCreatedModalOpen(true)}
-          className="flex items-center gap-2 px-3 py-2.5 bg-primary text-background rounded-xl text-xs font-serif font-semibold hover:opacity-80 transition-all mt-4"
-        >
-          <Plus size={14} />
-          New Entry
-        </button>
-      </aside>
 
-      {/* ============ MAIN CONTENT ============ */}
+        <div className="mt-auto flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted hover:text-text-main transition-colors"
+          >
+            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+          </button>
+          <button
+            onClick={() => setIsCreatedModalOpen(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl bg-text-main text-background text-xs font-sans font-medium transition-opacity hover:opacity-80"
+          >
+            <Plus size={13} /> New Task
+          </button>
+        </div>
+      </div>
+
+      {/* ============ MAIN AREA ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* DESKTOP TOP BAR */}
-        <header className="hidden lg:flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 lg:px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
-          <div>
-            <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted">
-              {todayLabel}
-            </p>
-            <h1 className="text-xl font-semi-bold font-serif text-text-main leading-tight mt-0.5 tracking-tight">
-              Dashboard
-            </h1>
+        {/* ---- DESKTOP HEADER ---- */}
+        <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            {[
+              { label: "Today", value: todayStr },
+              {
+                label: "Tomorrow",
+                value: tomorrowStr,
+              },
+              { label: "All", value: "" },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={() => setFilterDate(item.value)}
+                className={`px-3 h-8 rounded-full text-xs font-sans border transition-all ${
+                  filterDate === item.value
+                    ? "bg-primary text-background border-primary"
+                    : "border-border-subtle text-text-muted hover:border-text-muted"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={toggleTheme}
-              className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted hover:border-text-muted hover:text-text-main transition-colors"
-            >
-              {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
-            </button>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { label: "Today", value: todayStr },
-                {
-                  label: "Tomorrow",
-                  value: new Date(Date.now() + 86400000)
-                    .toISOString()
-                    .split("T")[0],
-                },
-                { label: "All", value: "" },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => seetFilterDate(item.value)}
-                  className={`px-3 h-8 rounded-full text-xs font-sans border transition-all ${
-                    filterDate === item.value
-                      ? "bg-primary text-background border-primary"
-                      : "border-border-subtle text-text-muted hover:border-text-muted"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
+
+          <div className="flex items-center gap-3">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
@@ -615,7 +632,7 @@ function Home() {
                     <p className="text-sm font-serif font-bold text-background leading-snug">
                       {tasksDueToday[0].title}
                     </p>
-                    <p className="text-[10px] font-sans text-text-muted mt-0.5">
+                    <p className="text-[10px] font-sans text-text mt-0.5">
                       {tasksDueToday[0].category_name}
                     </p>
                   </>
@@ -668,14 +685,14 @@ function Home() {
                   <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
                     Due Today
                   </h3>
-                  <span className="text-[10px] font-sans text-text-muted">
+                  <span className="text-[10px] font-sans text-text-main">
                     {tasksDueToday.length} pending
                   </span>
                 </div>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+                  onDragEnd={makeHandleDragEnd(tasksDueToday)}
                 >
                   <SortableContext
                     items={tasksDueToday.map((t) => t.id)}
@@ -711,7 +728,7 @@ function Home() {
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
+                  onDragEnd={makeHandleDragEnd(otherTasks)}
                 >
                   <SortableContext
                     items={otherTasks.map((t) => t.id)}
@@ -733,6 +750,14 @@ function Home() {
               </section>
             )}
 
+            {tasks.length === 0 && (
+              <div className="text-center py-24">
+                <p className="text-text-muted text-xs font-sans tracking-wide uppercase">
+                  No tasks yet. Click + to create one.
+                </p>
+              </div>
+            )}
+
             {/* Insert row */}
             <button
               onClick={() => setIsCreatedModalOpen(true)}
@@ -743,14 +768,6 @@ function Home() {
               </span>
               Insert Task Entry
             </button>
-
-            {tasks.length === 0 && (
-              <div className="text-center py-24">
-                <p className="text-text-muted text-xs font-sans tracking-wide uppercase">
-                  No tasks yet. Click + to create one.
-                </p>
-              </div>
-            )}
           </main>
 
           {/* ---- DESKTOP RIGHT PANEL ---- */}

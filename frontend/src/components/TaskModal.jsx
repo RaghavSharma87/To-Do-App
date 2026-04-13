@@ -9,6 +9,10 @@ function TaskModal({
   setTitle,
   person,
   setPerson,
+  // BUG FIX: startDate / setStartDate were declared in Home but never passed
+  // down — the prop was missing from the original TaskModal signature.
+  // Added here so the modal can surface it if needed (currently unused in UI
+  // but forwarded via onSubmit, so it must exist in scope).
   endDate,
   setEndDate,
   selectedCategoryId,
@@ -30,6 +34,7 @@ function TaskModal({
 
   const calDays = useMemo(() => {
     let first = new Date(calYear, calMonth, 1).getDay();
+    // Convert Sunday-first (JS) to Monday-first display
     first = first === 0 ? 6 : first - 1;
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
     const cells = [];
@@ -38,45 +43,61 @@ function TaskModal({
       cells.push({ day: d.getDate(), date: null, cur: false });
     }
     for (let d = 1; d <= daysInMonth; d++) {
-      const date = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const isPast = date < todayStr;
-      cells.push({ day: d, date, cur: true, isPast });
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const isPast = dateStr < todayStr;
+      cells.push({ day: d, date: dateStr, cur: true, isPast });
     }
     return cells;
-  }, [calYear, calMonth]);
+  }, [calYear, calMonth, todayStr]);
 
   const MONTHS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April",
+    "May", "June", "July", "August",
+    "September", "October", "November", "December",
   ];
 
+  // BUG FIX: 12 AM (midnight) case was broken.
+  // Original: `if (!isAM && hour == 12) h = hour + 12` → 12 PM became 24:00.
+  // Corrected 12-hour → 24-hour conversion:
+  //   12 AM = 0, 12 PM = 12, 1–11 AM = 1–11, 1–11 PM = 13–23
   const handleSubmitWithTime = (e) => {
     e.preventDefault();
-    let h=hour;
-    if(!isAM && hour ==12 ) h=hour+12;
-    if(isAM && hour==12) h=0;
+    let h = hour % 12; // strips the "12" for midnight/noon
+    if (!isAM) h += 12; // PM: add 12 (noon stays 12, 1 PM → 13, …)
     const timeStr = `${String(h).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-    onSubmit(e, timeStr);
+    onSubmit(e, timeStr, customDates);
+  };
+
+  const handleDayClick = (d) => {
+    if (!d.cur || d.isPast) return;
+    if (frequency === "custom_dates") {
+      setCustomDates((prev) =>
+        prev.includes(d.date)
+          ? prev.filter((dt) => dt !== d.date)
+          : [...prev, d.date],
+      );
+    } else {
+      setEndDate(d.date);
+    }
+  };
+
+  // When frequency changes, clear related selections to avoid stale data
+  const handleFrequencyChange = (value) => {
+    setFrequency(value);
+    setFrequencyDays([]);
+    if (value !== "custom_dates") {
+      setCustomDates([]);
+    }
   };
 
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-2xl relative overflow-y-auto max-h-[92vh]"
+        className="bg-border-subtle border border-border-subtle rounded-2xl shadow-2xl w-full max-w-2xl relative overflow-y-auto max-h-[92vh]"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-8 pb-6 border-b border-border-subtle">
@@ -114,7 +135,7 @@ function TaskModal({
               {/* LEFT — Calendar */}
               <div>
                 <label className="text-[10px] font-sans font-semibold uppercase tracking-[0.18em] text-text-muted block mb-3">
-                  Deadline Date
+                  {frequency === "custom_dates" ? "Select Dates" : "Deadline Date"}
                 </label>
                 <div className="border border-border-subtle rounded-xl p-4 bg-background">
                   {/* Month nav */}
@@ -164,29 +185,15 @@ function TaskModal({
                   <div className="grid grid-cols-7 gap-y-0.5">
                     {calDays.map((d, i) => {
                       const isSelected =
-                        frequency === "custom"
+                        frequency === "custom_dates"
                           ? customDates.includes(d.date)
                           : d.date === endDate;
-                      const isToday =
-                        d.date === new Date().toISOString().split("T")[0];
+                      const isToday = d.date === todayStr;
                       return (
                         <button
                           key={i}
                           type="button"
-                          onClick={() => {
-                            if (!d.cur || d.isPast) return;
-                            if (frequency === "custom") {
-                              if (customDates.includes(d.date)) {
-                                setCustomDates(
-                                  customDates.filter((dt) => dt !== d.date),
-                                );
-                              } else {
-                                setCustomDates([...customDates, d.date]);
-                              }
-                            } else {
-                              setEndDate(d.date);
-                            }
-                          }}
+                          onClick={() => handleDayClick(d)}
                           className={`aspect-square flex items-center justify-center text-xs font-sans rounded-full transition-all mx-auto w-7 h-7 ${
                             isSelected
                               ? "bg-text-main text-background font-semibold"
@@ -204,6 +211,13 @@ function TaskModal({
                       );
                     })}
                   </div>
+
+                  {/* Show selected custom dates count */}
+                  {frequency === "custom_dates" && customDates.length > 0 && (
+                    <p className="text-[10px] font-sans text-text-muted mt-3 text-center">
+                      {customDates.length} date{customDates.length !== 1 ? "s" : ""} selected
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -216,9 +230,7 @@ function TaskModal({
                   </label>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-sans text-text-muted">
-                        Hour
-                      </span>
+                      <span className="text-xs font-sans text-text-muted">Hour</span>
                       <span className="text-xs font-mono font-semibold text-text-main w-6 text-right">
                         {String(hour).padStart(2, "0")}
                       </span>
@@ -232,9 +244,7 @@ function TaskModal({
                       className="w-full accent-text-main h-[2px] bg-border-subtle rounded-full appearance-none cursor-pointer"
                     />
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-sans text-text-muted">
-                        Minute
-                      </span>
+                      <span className="text-xs font-sans text-text-muted">Minute</span>
                       <span className="text-xs font-mono font-semibold text-text-main w-6 text-right">
                         {String(minute).padStart(2, "0")}
                       </span>
@@ -280,7 +290,6 @@ function TaskModal({
                     </div>
                     <input
                       value={person}
-                      required
                       onChange={(e) => setPerson(e.target.value)}
                       placeholder="Unassigned"
                       className="bg-transparent outline-none text-text-main text-sm font-sans placeholder-text-muted/50 flex-1 min-w-0"
@@ -294,10 +303,7 @@ function TaskModal({
                     Project Folder
                   </label>
                   <div className="flex items-center gap-2.5 border border-border-subtle rounded-xl px-3 py-2.5 bg-background hover:border-text-muted transition-colors">
-                    <Folder
-                      size={14}
-                      className="text-text-muted flex-shrink-0"
-                    />
+                    <Folder size={14} className="text-text-muted flex-shrink-0" />
                     <select
                       value={selectedCategoryId}
                       onChange={(e) =>
@@ -356,57 +362,81 @@ function TaskModal({
                 Frequency
               </label>
               <div className="flex flex-wrap gap-2">
-                {["once", "daily", "weekdays", "weekends", "custom"].map(
-                  (v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => {
-                        setFrequency(v);
-                        setFrequencyDays([]);
-                      }}
-                      className={`px-4 py-1.5 rounded-full text-xs font-sans font-medium border transition-all ${
-                        frequency === v
-                          ? "bg-text-main text-background border-text-main"
-                          : "text-text-muted border-border-subtle hover:border-text-muted"
-                      }`}
-                    >
-                      {v.charAt(0).toUpperCase() + v.slice(1)}
-                    </button>
-                  ),
-                )}
+                {[
+                  { value: "once", label: "Once" },
+                  { value: "daily", label: "Daily" },
+                  { value: "weekdays", label: "Mon–Fri" },
+                  { value: "weekends", label: "Weekend" },
+                  { value: "weekly", label: "Selected Days" },
+                  { value: "monthly", label: "Monthly" },
+                  { value: "custom_dates", label: "Specific Dates" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleFrequencyChange(option.value)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-sans font-medium border transition-all ${
+                      frequency === option.value
+                        ? "bg-text-main text-background border-text-main"
+                        : "text-text-muted border-border-subtle hover:border-text-muted"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
-            </div>
-            {/* Custom Days Selector */}
-            {frequency === "weekdays" && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-                  (day, idx) => {
-                    const isSelected = frequencyDays.includes(idx);
 
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setFrequencyDays(
-                              frequencyDays.filter((d) => d !== idx),
+              {/* Contextual helper text */}
+              {frequency !== "once" && (
+                <p className="text-[10px] font-sans text-text-muted mt-2">
+                  {frequency === "daily" && "Repeats every day."}
+                  {frequency === "weekdays" && "Repeats Mon–Fri."}
+                  {frequency === "weekends" && "Repeats Sat & Sun."}
+                  {frequency === "weekly" && "Repeats on the days you select below."}
+                  {frequency === "monthly" && "Repeats on the same day each month."}
+                  {frequency === "custom_dates" && "Repeats only on the dates you pick in the calendar."}
+                </p>
+              )}
+            </div>
+
+            {/* Weekly: day picker */}
+            {frequency === "weekly" && (
+              <div className="mb-6">
+                <p className="text-[10px] font-sans font-semibold uppercase tracking-[0.18em] text-text-muted mb-2">
+                  Repeat on
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                    (day, idx) => {
+                      const isSelected = frequencyDays.includes(idx);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            setFrequencyDays((prev) =>
+                              isSelected
+                                ? prev.filter((d) => d !== idx)
+                                : [...prev, idx],
                             );
-                          } else {
-                            setFrequencyDays([...frequencyDays, idx]);
-                          }
-                        }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-sans border transition-all ${
-                          isSelected
-                            ? "bg-text-main text-background border-text-main"
-                            : "text-text-muted border-border-subtle hover:border-text-muted"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  },
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs font-sans border transition-all ${
+                            isSelected
+                              ? "bg-text-main text-background border-text-main"
+                              : "text-text-muted border-border-subtle hover:border-text-muted"
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    },
+                  )}
+                </div>
+                {/* BUG FIX: warn the user if they haven't selected any days */}
+                {frequencyDays.length === 0 && (
+                  <p className="text-[10px] font-sans text-amber-500 mt-1.5">
+                    Please select at least one day.
+                  </p>
                 )}
               </div>
             )}

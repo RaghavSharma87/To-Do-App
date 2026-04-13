@@ -6,11 +6,12 @@ from datetime import time
 
 FREQUENCY_CHOICES = [
     ("once", "Once"),
-    ("weekdays", "Select Weekdays"),
-    ("daily", "Everyday"),
+    ("daily", "Daily"),
+    ("weekdays", "Weekdays"),
     ("weekends", "Weekends"),
-    ("date", "Selected Date"),
-    ("custom", "Custom Dates"),
+    ("weekly", "Weekly"),
+    ("monthly", "Monthly"),
+    ("custom_dates", "Custom Dates"),
 ]
 
 PRIORITY_CHOICES = [
@@ -59,6 +60,8 @@ class Task(models.Model):
     end_date = models.DateField(default=get_default_end_date)
 
     end_time = models.TimeField(default=get_default_end_time)
+    
+    custom_dates = models.JSONField(default=list, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
