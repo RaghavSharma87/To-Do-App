@@ -281,12 +281,12 @@ function Home() {
   // ---------------- ACTIONS ----------------
   const handleSubmit = async (e,timeStr) => {
     e.preventDefault();
-    if (!title.trim() || !selectedCategoryId) return;
+    if (!title.trim() ) return;
 
     await createTask({
       title,
       completed: false,
-      category: selectedCategoryId,
+      category: selectedCategoryId || null ,
       person: person || "Unassigned",
       start_date: startDate || todayStr,
       end_date: endDate || todayStr,
