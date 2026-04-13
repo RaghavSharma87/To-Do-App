@@ -16,6 +16,7 @@ from datetime import timedelta, date
 # Frequency helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 def next_month_same_date(current_date):
     """Return the same day-of-month in the next calendar month (clamped to last day)."""
     year = current_date.year
@@ -33,7 +34,7 @@ def next_month_same_date(current_date):
 def next_weekday(current_date):
     """Return the next Mon–Fri date after *current_date*."""
     next_date = current_date + timedelta(days=1)
-    while next_date.weekday() >= 5:          # 5=Sat, 6=Sun
+    while next_date.weekday() >= 5:  # 5=Sat, 6=Sun
         next_date += timedelta(days=1)
     return next_date
 
@@ -78,6 +79,7 @@ def next_custom_date(current_date, custom_dates):
 # Auth
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class RegisterUserAPIView(APIView):
 
     def post(self, request):
@@ -106,6 +108,7 @@ class LoginAPIView(TokenObtainPairView):
 # ──────────────────────────────────────────────────────────────────────────────
 # Categories
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class CategoryListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -136,9 +139,7 @@ class CategoryDeleteAPIView(APIView):
 
         # Reassign orphaned tasks to a per-user "General" category instead of a
         # shared global one (avoids cross-user data leakage).
-        general, _ = Category.objects.get_or_create(
-            name="General", user=request.user
-        )
+        general, _ = Category.objects.get_or_create(name="General", user=request.user)
         Task.objects.filter(category=category, user=request.user).update(
             category=general
         )
@@ -150,6 +151,7 @@ class CategoryDeleteAPIView(APIView):
 # Tasks
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class TaskListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -158,11 +160,23 @@ class TaskListCreateAPIView(APIView):
         archived = request.GET.get("archived")
 
         if include_archived == "true":
-            tasks = Task.objects.filter(user=request.user).order_by("order")
+            tasks = (
+                Task.objects.select_related("category")
+                .filter(user=request.user)
+                .order_by("order")
+            )
         elif archived == "true":
-            tasks = Task.objects.filter(user=request.user, archived=True).order_by("order")
+            tasks = (
+                Task.objects.select_related("category")
+                .filter(user=request.user)
+                .order_by("order")
+            )
         else:
-            tasks = Task.objects.filter(user=request.user, archived=False).order_by("order")
+            tasks = (
+                Task.objects.select_related("category")
+                .filter(user=request.user)
+                .order_by("order")
+            )
 
         # Optional filters
         category = request.GET.get("category")
@@ -191,7 +205,9 @@ class TaskDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self, pk):
-        return get_object_or_404(Task, pk=pk, user=self.request.user)
+        return get_object_or_404(
+            Task.objects.select_related("category"), pk=pk, user=self.request.user
+        )
 
     def get(self, request, pk):
         task = self.get_object(pk)
@@ -285,7 +301,7 @@ class TaskCompleteAPIView(APIView):
             priority=task.priority,
             frequency=task.frequency,
             frequency_days=task.frequency_days,
-            custom_dates=task.custom_dates,   # carry forward for custom_dates tasks
+            custom_dates=task.custom_dates,  # carry forward for custom_dates tasks
             start_date=next_date,
             end_date=next_date,
             end_time=task.end_time,
@@ -294,4 +310,6 @@ class TaskCompleteAPIView(APIView):
             order=task.order,
         )
 
-        return Response({"message": "Recurring task completed, next occurrence created"})
+        return Response(
+            {"message": "Recurring task completed, next occurrence created"}
+        )

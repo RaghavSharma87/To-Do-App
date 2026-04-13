@@ -39,11 +39,11 @@ class Category(models.Model):
 
 
 class Task(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, db_index=True)
 
     title = models.CharField(max_length=200)
     completed = models.BooleanField(default=False)
-    archived = models.BooleanField(default=False)
+    archived = models.BooleanField(default=False, db_index=True)
 
     category = models.ForeignKey(
         Category, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True
@@ -57,7 +57,7 @@ class Task(models.Model):
 
     start_date = models.DateField(default=timezone.now)
 
-    end_date = models.DateField(default=get_default_end_date)
+    end_date = models.DateField(default=get_default_end_date, db_index=True)
 
     end_time = models.TimeField(default=get_default_end_time)
     
@@ -67,3 +67,9 @@ class Task(models.Model):
 
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default="none")
     order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        indexes=[
+            models.Index(fields=["user","archived"]),
+            models.Index(fields=["user","end_date"])
+        ]
