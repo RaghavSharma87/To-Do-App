@@ -294,8 +294,4 @@ class TaskCompleteAPIView(APIView):
             order=task.order,
         )
 
-<<<<<<< HEAD
-        return Response({"message": "Recurring task completed"})
-=======
         return Response({"message": "Recurring task completed, next occurrence created"})
->>>>>>> d05937f (Major Fixes Done)

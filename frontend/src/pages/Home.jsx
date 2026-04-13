@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, ArrowBigLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -12,7 +12,6 @@ import {
   Settings,
   GripVertical,
   SlidersHorizontal,
-  ArrowBigLeft
 } from "lucide-react";
 import {
   DndContext,
@@ -37,7 +36,6 @@ import {
   reorderTasks,
 } from "../api";
 import TaskModal from "../components/TaskModal";
-
 import { useTheme } from "../components/ThemeContext";
 
 // ---------------- CREDIT MAP ----------------
@@ -136,14 +134,9 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 
       {/* Delete */}
       <button
-  onClick={(e) => {
-    e.stopPropagation();
-    onDelete(task.id);
-  }}
-  className="opacity-60 md:opacity-0 md:group-hover:opacity-60 hover:!opacity-100 transition-opacity text-text-muted hover:text-red-400 mt-0.5 flex-shrink-0"
->
-  <Trash2 size={14} />
-</button>
+        onClick={() => onDelete(task.id)}
+        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-text-muted hover:text-red-400 mt-0.5 flex-shrink-0"
+      >
         <Trash2 size={14} />
       </button>
     </motion.div>
@@ -447,10 +440,11 @@ function Home() {
       },
     },
     {
-      if:"back",
+      id:"back",
+      label:"Back",
       icon : <ArrowBigLeft size={15} />,
-      onClick:() =>{
-        navigate("/");
+      onClick : ()=>{
+        navigate("/")
       }
     }
   ];
@@ -685,7 +679,7 @@ function Home() {
                   <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
                     Due Today
                   </h3>
-                  <span className="text-[10px] font-sans text-text-main">
+                  <span className="text-[10px] font-sans text-text-muted">
                     {tasksDueToday.length} pending
                   </span>
                 </div>
