@@ -7,6 +7,7 @@ import Landing from "./pages/LandingPage";
 import Categories from "./pages/Categories";
 import Archive from "./pages/Archive";
 import Setting from "./pages/Setting";
+import MissedDeadlines from "./pages/MissedDeadlines";
 import BackgroundWrapper from "./components/BackgroundWrapper";
 import {
   BrowserRouter,
@@ -18,7 +19,7 @@ import {
 function Layout() {
   const location = useLocation();
 
-  const hideNavbar = ["/auth", "/", "/home", "/categories", "/archive", "/settings"].includes(
+  const hideNavbar = ["/auth", "/", "/home", "/categories", "/archive", "/settings", "/missed-deadlines"].includes(
     location.pathname,
   );
 
@@ -35,9 +36,7 @@ function Layout() {
           path="/home"
           element={
             <ProtectedRoute>
-              <BackgroundWrapper>
                 <Home />
-              </BackgroundWrapper>
             </ProtectedRoute>
           }
         />
@@ -45,9 +44,7 @@ function Layout() {
           path="/categories"
           element={
             <ProtectedRoute>
-              <BackgroundWrapper>
                 <Categories />
-              </BackgroundWrapper>
             </ProtectedRoute>
           }
         />
@@ -55,9 +52,15 @@ function Layout() {
           path="/archive"
           element={
             <ProtectedRoute>
-              <BackgroundWrapper>
                 <Archive />
-              </BackgroundWrapper>
+            </ProtectedRoute>
+          }
+        />
+                <Route
+          path="/missed-deadlines"
+          element={
+            <ProtectedRoute>
+                <MissedDeadlines />
             </ProtectedRoute>
           }
         />

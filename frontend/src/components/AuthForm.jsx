@@ -22,9 +22,8 @@ function AuthForm({ isLogin, onSubmit, onToggle, error }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4 ">
       <div className="w-full max-w-md glass-strong p-8 md:p-12 rounded-3xl shadow-sm transition-all duration-500">
-        
         {/* Logo Section */}
         <div className="text-center mb-10">
           <h2 className="text-sm uppercase tracking-[0.3em] font-bold text-primary mb-2">
@@ -35,26 +34,42 @@ function AuthForm({ isLogin, onSubmit, onToggle, error }) {
           </h1>
           <p className="text-sm text-text-muted mt-2">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button 
+            <button
               type="button"
               onClick={() => {
                 onToggle();
                 setLocalError("");
                 setConfirmPassword("");
-              }} 
+              }}
               className="text-text-main font-semibold underline underline-offset-4 hover:opacity-60 transition-opacity"
             >
               {isLogin ? "Sign up" : "Sign in"}
             </button>
           </p>
         </div>
-
         {/* Show either Backend Error or Local Validation Error */}
-        <ErrorAlert message={error || localError} />
-
+        
+        {error && (
+          <p
+            style={{
+              color: "#ff4d4d",
+              fontSize: "0.85rem",
+              marginTop: "8px",
+              marginBottom: "4px",
+              padding: "10px 14px",
+              background: "rgba(255, 77, 77, 0.1)",
+              border: "1px solid rgba(255, 77, 77, 0.3)",
+              borderRadius: "8px",
+            }}
+          >
+            {error}
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">Username</label>
+            <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">
+              Username
+            </label>
             <input
               type="text"
               placeholder="Enter your username"
@@ -66,7 +81,9 @@ function AuthForm({ isLogin, onSubmit, onToggle, error }) {
           </div>
 
           <div className="space-y-1 relative">
-            <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">Password</label>
+            <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">
+              Password
+            </label>
             <input
               type={showpassword ? "text" : "password"}
               placeholder="••••••••"
@@ -80,14 +97,16 @@ function AuthForm({ isLogin, onSubmit, onToggle, error }) {
               onClick={() => setShowPassword(!showpassword)}
               className="absolute right-4 top-[38px] text-lg opacity-40 hover:opacity-100 transition-opacity"
             >
-              {showpassword ? "👁️" : "🙈"} 
+              {showpassword ? "👁️" : "🙈"}
             </button>
           </div>
 
           {/* --- CONFIRM PASSWORD FIELD  --- */}
           {!isLogin && (
             <div className="space-y-1 animate-in fade-in slide-in-from-top-2 duration-300">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">Confirm Password</label>
+              <label className="text-[10px] uppercase tracking-widest font-bold text-text-muted ml-1">
+                Confirm Password
+              </label>
               <input
                 type={showpassword ? "text" : "password"}
                 placeholder="••••••••"

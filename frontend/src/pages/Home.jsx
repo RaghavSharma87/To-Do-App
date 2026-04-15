@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sun, Moon, ArrowBigLeft } from "lucide-react";
+import { Sun, Moon, ArrowBigLeft, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -236,6 +236,14 @@ function Home() {
   }, [searchPerson, filterCategory, filterDate]);
 
   // ---------------- DERIVED ----------------
+    const missedTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          !t.completed && !t.archived && t.end_date && t.end_date < todayStr,
+      ),
+    [tasks, todayStr],
+  );
   const tasksDueToday = useMemo(
     () =>
       tasks.filter(
@@ -247,13 +255,17 @@ function Home() {
   const otherTasks = useMemo(
     () =>
       tasks.filter(
-        (t) => !t.archived && !(t.end_date === todayStr && !t.completed),
+        (t) =>
+          !t.completed &&
+          !t.archived &&
+          t.end_date >= todayStr &&
+          t.end_date !== todayStr,
       ),
     [tasks, todayStr],
   );
 
   const completedTasks = useMemo(
-    () => tasks.filter((t) => t.completed && !t.archived),
+    () => tasks.filter((t) => t.completed && t.archived),
     [tasks],
   );
   const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks]);
@@ -288,6 +300,11 @@ function Home() {
 
   const completionPct =
     totalCredits > 0 ? Math.round((earnedCredits / totalCredits) * 100) : 0;
+
+  const penalty=missedTasks.length *5;
+  const adjustedEfficeincy=Math.max(0, completionPct-penalty)
+
+
 
   // ---------------- ACTIONS ----------------
   const handleSubmit = async (e, timeStr, customDates = []) => {
@@ -440,13 +457,22 @@ function Home() {
       },
     },
     {
-      id:"back",
-      label:"Back",
-      icon : <ArrowBigLeft size={15} />,
-      onClick : ()=>{
-        navigate("/")
-      }
-    }
+      id: "back",
+      label: "Back",
+      icon: <ArrowBigLeft size={15} />,
+      onClick: () => {
+        navigate("/");
+      },
+    },
+    {
+      id: "missed",
+      label: "Missed Deadlines",
+      icon: <AlertTriangle size={15} />,
+      onClick: () => {
+        setActiveNav("missed");
+        navigate("/missed-deadlines");
+      },
+    },
   ];
 
   // ---------------- UI ----------------
@@ -520,7 +546,16 @@ function Home() {
               }`}
             >
               {item.icon}
-              {item.label === "My Tasks" ? "Tasks" : item.label}
+
+              <div className="flex items-center justify-between w-full">
+                <span>{item.label === "My Tasks" ? "Tasks" : item.label}</span>
+
+                {item.id === "missed" && missedTasks.length > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full min-w-[18px] text-center">
+                    {missedTasks.length}
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </nav>
@@ -644,13 +679,13 @@ function Home() {
                     Task Efficiency
                   </span>
                   <span className="text-[11px] font-sans font-semibold text-text-main">
-                    {completionPct}%
+                    {adjustedEfficeincy}%
                   </span>
                 </div>
                 <div className="h-[3px] rounded-full bg-border-subtle overflow-hidden">
                   <div
                     className="h-full bg-text-main rounded-full transition-all duration-500"
-                    style={{ width: `${completionPct}%` }}
+                    style={{ width: `${adjustedEfficeincy}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2">
@@ -776,13 +811,13 @@ function Home() {
                   Credits earned
                 </span>
                 <span className="text-[11px] font-sans font-semibold text-text-main">
-                  {completionPct}%
+                  {adjustedEfficeincy}%
                 </span>
               </div>
               <div className="h-[3px] rounded-full bg-border-subtle overflow-hidden">
                 <div
                   className="h-full bg-text-main rounded-full transition-all duration-500"
-                  style={{ width: `${completionPct}%` }}
+                  style={{ width: `${adjustedEfficeincy}%` }}
                 />
               </div>
               <p className="text-[10px] font-sans text-text-muted mt-2 leading-relaxed">
