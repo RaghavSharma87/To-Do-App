@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sun, Moon, ArrowBigLeft, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, time } from "framer-motion";
 import {
   Plus,
   Search,
@@ -37,7 +37,12 @@ import {
 } from "../api";
 import TaskModal from "../components/TaskModal";
 import { useTheme } from "../components/ThemeContext";
-
+import {
+  registerSW,
+  requestNotificationPermission,
+  scheduleTaskNotification,
+  clearScheduledNotification,
+} from "../utils/notifications";
 // ---------------- CREDIT MAP ----------------
 const CREDITS = { high: 4, medium: 3, low: 1, none: 0 };
 
@@ -222,6 +227,9 @@ function Home() {
     fetchCategories();
     fetchAllTasksForAnalytics();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    registerSW();
+    requestNotificationPermission();
   }, []);
 
   useEffect(() => {
@@ -236,14 +244,17 @@ function Home() {
   }, [searchPerson, filterCategory, filterDate]);
 
   // ---------------- DERIVED ----------------
-    const missedTasks = useMemo(
-    () =>
-      tasks.filter(
-        (t) =>
-          !t.completed && !t.archived && t.end_date && t.end_date < todayStr,
-      ),
-    [tasks, todayStr],
-  );
+  const now = new Date();
+
+  const missedTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (t.completed || t.archived || !t.end_date) return false;
+
+      const deadline = new Date(`${t.end_date}T${t.end_time || "23:59"}`);
+
+      return deadline < now;
+    });
+  }, [tasks, now]);
   const tasksDueToday = useMemo(
     () =>
       tasks.filter(
@@ -301,10 +312,8 @@ function Home() {
   const completionPct =
     totalCredits > 0 ? Math.round((earnedCredits / totalCredits) * 100) : 0;
 
-  const penalty=missedTasks.length *5;
-  const adjustedEfficeincy=Math.max(0, completionPct-penalty)
-
-
+  const penalty = missedTasks.length * 5;
+  const adjustedEfficeincy = Math.max(0, completionPct - penalty);
 
   // ---------------- ACTIONS ----------------
   const handleSubmit = async (e, timeStr, customDates = []) => {
@@ -331,7 +340,7 @@ function Home() {
         : endDate || todayStr;
 
     try {
-      await createTask({
+      const res = await createTask({
         title,
         completed: false,
         category: selectedCategoryId || null,
@@ -344,6 +353,11 @@ function Home() {
         custom_dates: customDates,
         priority,
       });
+
+      const selectPersonality =
+        localStorage.getItem("notificationPersonality") || "politeness";
+      const dueDateTime = `${resolvedEndDate}T${timeStr || "09:00"}`;
+      scheduleTaskNotification(res.id, title, dueDateTime, selectPersonality);
 
       // Reset form state
       setTitle("");
@@ -364,6 +378,7 @@ function Home() {
   const handleToggle = async (task) => {
     try {
       await completeTask(task.id);
+      clearScheduledNotification(task.id);
       fetchTasks();
       fetchAllTasksForAnalytics();
     } catch (err) {
@@ -375,6 +390,7 @@ function Home() {
     if (!window.confirm("Delete this task?")) return;
     try {
       await deleteTask(id);
+      clearScheduledNotification(id);
       fetchTasks();
     } catch (err) {
       console.error("Failed to delete task", err);
@@ -503,7 +519,6 @@ function Home() {
           </button>
         </div>
       </div>
-
       {/* Mobile search bar (toggleable) */}
       {showMobileSearch && (
         <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-[57px] z-10">
@@ -522,7 +537,6 @@ function Home() {
           </div>
         </div>
       )}
-
       {/* ============ DESKTOP SIDEBAR ============ */}
       <div className="hidden lg:flex w-56 flex-shrink-0 border-r border-border-subtle flex-col px-5 py-8 gap-6 bg-background/80 backdrop-blur-md sticky top-0 h-screen overflow-y-auto">
         <div>
@@ -575,7 +589,6 @@ function Home() {
           </button>
         </div>
       </div>
-
       {/* ============ MAIN AREA ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* ---- DESKTOP HEADER ---- */}
@@ -951,7 +964,6 @@ function Home() {
           </aside>
         </div>
       </div>
-
       {/* ============ MOBILE FAB ============ */}
       <button
         onClick={() => setIsCreatedModalOpen(true)}
@@ -959,7 +971,6 @@ function Home() {
       >
         <Plus size={20} />
       </button>
-
       {/* ============ MOBILE BOTTOM NAV ============ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background/80 backdrop-blur-md">
         {navItems.map((item) => (
@@ -980,8 +991,7 @@ function Home() {
           </button>
         ))}
       </nav>
-
-      {/* ============ MODAL ============ */}
+      {/* ============ MODAL ============ */}`
       {isCreatedModalOpen && (
         <TaskModal
           onClose={() => setIsCreatedModalOpen(false)}
@@ -1005,6 +1015,7 @@ function Home() {
           setPriority={setPriority}
         />
       )}
+      `
     </div>
   );
 }

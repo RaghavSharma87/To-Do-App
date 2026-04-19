@@ -21,6 +21,7 @@ function Auth() {
         await registerUser(data);
         const res = await loginUser(data);
         localStorage.setItem("token", res.data.access);
+        navigate("/home");
       }
     } catch (err) {
       const detail = err.response?.data?.detail;
