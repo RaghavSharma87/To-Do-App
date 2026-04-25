@@ -23,7 +23,8 @@ function Landing() {
     .toUpperCase();
 
   const logout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
     setMenuOpen(false);
     navigate("/");
   };

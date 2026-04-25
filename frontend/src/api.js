@@ -4,8 +4,7 @@ const API = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
 
-// ── BUG 1 FIX: removed duplicate import + redeclaration.
-// isTokenValid is defined here once, correctly, with the right param name.
+
 const isTokenValid = (token) => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
@@ -21,7 +20,7 @@ API.interceptors.request.use((config) => {
   if (token && isTokenValid(token)) {
     config.headers.Authorization = `Bearer ${token}`;
   } else {
-    // BUG 2 FIX: was removing "token" key, should be "access"
+    
     localStorage.removeItem("access");
   }
 
@@ -31,8 +30,6 @@ API.interceptors.request.use((config) => {
 let isRefreshing = false;
 let pendingQueue = [];
 
-// BUG 3 FIX: renamed from proceedPendingQueue → processPendingQueue
-// to match the call sites below
 const processPendingQueue = (error, token = null) => {
   pendingQueue.forEach(({ resolve, reject }) => {
     if (error) reject(error);
