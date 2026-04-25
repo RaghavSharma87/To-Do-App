@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getTasks, patchTask } from "../api";
+import { getTasks, patchTask, deleteArchivedTasks } from "../api";
 import { useTheme } from "../components/ThemeContext";
 import {
   Sun, Moon, Archive, Tag, Trash, Settings, RotateCcw,
@@ -26,8 +26,20 @@ function ArchivePage() {
     setTasks(res.data);
   };
 
+  // Run auto-delete before fetching so the list is already clean when it loads
+  const runAutoDeleteIfEnabled = async () => {
+    const enabled = localStorage.getItem("autoDeleteArchive") === "true";
+    if (!enabled) return;
+    const days = parseInt(localStorage.getItem("archiveDays") || "30", 10);
+    try {
+      await deleteArchivedTasks(days);
+    } catch (err) {
+      console.warn("Auto-delete failed:", err);
+    }
+  };
+
   useEffect(() => {
-    fetchArchived();
+    runAutoDeleteIfEnabled().then(fetchArchived);
   }, []);
 
   const restoreTask = async (task) => {

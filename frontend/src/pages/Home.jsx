@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sun, Moon, ArrowBigLeft, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence, time } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   Search,
@@ -12,14 +12,18 @@ import {
   Settings,
   GripVertical,
   SlidersHorizontal,
+  Filter,
 } from "lucide-react";
 import {
   DndContext,
+  TouchSensor,
+  KeyboardSensor,
   closestCenter,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -43,6 +47,7 @@ import {
   scheduleTaskNotification,
   clearScheduledNotification,
 } from "../utils/notifications";
+
 // ---------------- CREDIT MAP ----------------
 const CREDITS = { high: 4, medium: 3, low: 1, none: 0 };
 
@@ -90,7 +95,7 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
       <div
         {...attributes}
         {...listeners}
-        className="mt-1 cursor-grab opacity-0 group-hover:opacity-40 flex-shrink-0 text-text-muted"
+        className="mt-1 cursor-grab opacity-0 group-hover:opacity-40 sm:opacity-0 sm:group-hover:opacity-40 opacity-30 flex-shrink-0 text-text-muted touch-none"
       >
         <GripVertical size={14} />
       </div>
@@ -151,7 +156,22 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 // ---------------- HOME ----------------
 function Home() {
   const navigate = useNavigate();
-  const sensors = useSensors(useSensor(PointerSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   // ---------------- STATE ----------------
   const { theme, toggleTheme } = useTheme();
@@ -168,13 +188,13 @@ function Home() {
   const [searchPerson, setSearchPerson] = useState("");
   const [frequency, setFrequency] = useState("once");
   const [frequencyDays, setFrequencyDays] = useState([]);
-
   const [priority, setPriority] = useState("none");
 
-  // BUG FIX: typo `seetFilterDate` → `setFilterDate` (consistent naming)
   const [filterDate, setFilterDate] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  // NEW: toggle for mobile filter strip
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -199,10 +219,6 @@ function Home() {
 
   const fetchAllTasksForAnalytics = async () => {
     try {
-      // BUG FIX: was passing the full query string "?include_archived=true" as
-      // the params object — getTasks() uses URLSearchParams so this ended up as
-      // `tasks/??include_archived=true` (double question mark).
-      // Pass a plain object instead so the helper builds the query correctly.
       const res = await getTasks({ include_archived: "true" });
       setAllTasks(res.data);
     } catch (err) {
@@ -226,10 +242,9 @@ function Home() {
     fetchTasks();
     fetchCategories();
     fetchAllTasksForAnalytics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-
     registerSW();
     requestNotificationPermission();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -245,16 +260,18 @@ function Home() {
 
   // ---------------- DERIVED ----------------
   const now = new Date();
+  const tomorrowStr = new Date(Date.now() + 86400000)
+    .toISOString()
+    .split("T")[0];
 
   const missedTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (t.completed || t.archived || !t.end_date) return false;
-
       const deadline = new Date(`${t.end_date}T${t.end_time || "23:59"}`);
-
       return deadline < now;
     });
   }, [tasks, now]);
+
   const tasksDueToday = useMemo(
     () =>
       tasks.filter(
@@ -280,10 +297,6 @@ function Home() {
     [tasks],
   );
   const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks]);
-
-  const tomorrowStr = new Date(Date.now() + 86400000)
-    .toISOString()
-    .split("T")[0];
 
   const efficiencyTasks = useMemo(() => {
     if (filterDate === todayStr) {
@@ -320,20 +333,15 @@ function Home() {
     e.preventDefault();
     if (!title.trim()) return;
 
-    // BUG FIX: for "weekly" frequency, require at least one day to be selected.
     if (frequency === "weekly" && frequencyDays.length === 0) {
       alert("Please select at least one day for the weekly frequency.");
       return;
     }
-
-    // BUG FIX: for "custom_dates" frequency, require at least one date.
     if (frequency === "custom_dates" && customDates.length === 0) {
       alert("Please select at least one date for the custom dates frequency.");
       return;
     }
 
-    // For custom_dates, use the first selected date as end_date so the backend
-    // creates the first occurrence correctly.
     const resolvedEndDate =
       frequency === "custom_dates" && customDates.length > 0
         ? customDates.sort()[0]
@@ -359,7 +367,6 @@ function Home() {
       const dueDateTime = `${resolvedEndDate}T${timeStr || "09:00"}`;
       scheduleTaskNotification(res.id, title, dueDateTime, selectPersonality);
 
-      // Reset form state
       setTitle("");
       setPerson("");
       setStartDate("");
@@ -397,18 +404,12 @@ function Home() {
     }
   };
 
-  // BUG FIX: drag-and-drop was operating on the full `tasks` array but each
-  // DndContext only contains a subset (tasksDueToday or otherTasks).  When an
-  // item from "Due Today" was dragged, findIndex searched `tasks` and could
-  // match an index in the wrong section.  Now each handler receives the correct
-  // sub-list.
   const makeHandleDragEnd = (list) => async (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = list.findIndex((t) => t.id === active.id);
     const newIndex = list.findIndex((t) => t.id === over.id);
     const reordered = arrayMove(list, oldIndex, newIndex);
-    // Optimistic update
     setTasks((prev) => {
       const ids = new Set(list.map((t) => t.id));
       const rest = prev.filter((t) => !ids.has(t.id));
@@ -416,6 +417,14 @@ function Home() {
     });
     await reorderTasks(reordered.map((t, i) => ({ id: t.id, order: i })));
   };
+
+  // ---------------- HELPERS ----------------
+  // Compute sticky top offset for mobile filter strip
+  // Top bar: ~57px. Search bar (if open): ~48px.
+  const mobileFilterTop = showMobileSearch ? "top-[105px]" : "top-[57px]";
+
+  // Height of filter strip so content doesn't hide beneath it on mobile
+  const filterStripHeight = showMobileFilters ? "72px" : "40px";
 
   // ---------------- NAV ITEMS ----------------
   const navItems = [
@@ -476,13 +485,11 @@ function Home() {
       id: "back",
       label: "Back",
       icon: <ArrowBigLeft size={15} />,
-      onClick: () => {
-        navigate("/");
-      },
+      onClick: () => navigate("/"),
     },
     {
       id: "missed",
-      label: "Missed Deadlines",
+      label: "Missed",
       icon: <AlertTriangle size={15} />,
       onClick: () => {
         setActiveNav("missed");
@@ -494,6 +501,7 @@ function Home() {
   // ---------------- UI ----------------
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
+
       {/* ============ MOBILE TOP BAR ============ */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-20">
         <div>
@@ -505,6 +513,21 @@ function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Filter toggle button — shows active dot when a filter is applied */}
+          <button
+            onClick={() => setShowMobileFilters((v) => !v)}
+            className={`relative w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+              showMobileFilters
+                ? "border-text-main text-text-main bg-border-subtle"
+                : "border-border-subtle text-text-muted"
+            }`}
+          >
+            <Filter size={14} />
+            {/* Active indicator dot */}
+            {(filterDate || filterCategory) && (
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+            )}
+          </button>
           <button
             onClick={() => setShowMobileSearch((v) => !v)}
             className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted"
@@ -519,9 +542,10 @@ function Home() {
           </button>
         </div>
       </div>
-      {/* Mobile search bar (toggleable) */}
+
+      {/* ── Mobile search bar (toggleable) ── */}
       {showMobileSearch && (
-        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-[57px] z-10">
+        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-[57px] z-20">
           <div className="relative">
             <Search
               size={13}
@@ -537,6 +561,131 @@ function Home() {
           </div>
         </div>
       )}
+
+      {/* ── Mobile filter strip (toggleable) ── */}
+      <AnimatePresence>
+        {showMobileFilters && (
+          <motion.div
+            key="mobile-filters"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className={`lg:hidden sticky ${mobileFilterTop} z-20 border-b border-border-subtle bg-background/90 backdrop-blur-md overflow-hidden`}
+          >
+            {/* Date filters row */}
+            <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5 overflow-x-auto scrollbar-hide">
+              <span className="text-[9px] font-sans uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
+                Date
+              </span>
+              {[
+                { label: "Today", value: todayStr },
+                { label: "Tomorrow", value: tomorrowStr },
+                { label: "All", value: "" },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() =>
+                    setFilterDate(filterDate === item.value && item.value !== "" ? "" : item.value)
+                  }
+                  className={`px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
+                    filterDate === item.value
+                      ? "bg-text-main text-background border-text-main font-semibold"
+                      : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Category filters row */}
+            <div className="flex items-center gap-2 px-4 pt-1 pb-2.5 overflow-x-auto scrollbar-hide">
+              <span className="text-[9px] font-sans uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
+                Cat.
+              </span>
+              {/* "All" pill */}
+              <button
+                onClick={() => setFilterCategory("")}
+                className={`px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
+                  filterCategory === ""
+                    ? "bg-text-main text-background border-text-main font-semibold"
+                    : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
+                }`}
+              >
+                All
+              </button>
+              {categories.map((cat) => {
+                const count = tasks.filter(
+                  (t) =>
+                    t.category_name === cat.name && !t.completed && !t.archived,
+                ).length;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() =>
+                      setFilterCategory(
+                        filterCategory === cat.name ? "" : cat.name,
+                      )
+                    }
+                    className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
+                      filterCategory === cat.name
+                        ? "bg-text-main text-background border-text-main font-semibold"
+                        : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
+                    }`}
+                  >
+                    {cat.name}
+                    {count > 0 && (
+                      <span
+                        className={`text-[9px] font-sans font-bold rounded-full px-1 ${
+                          filterCategory === cat.name
+                            ? "bg-background/20 text-background"
+                            : "bg-border-subtle text-text-muted"
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active filter summary + clear */}
+            {(filterDate || filterCategory) && (
+              <div className="flex items-center justify-between px-4 pb-2">
+                <p className="text-[10px] font-sans text-text-muted">
+                  Filtered by:{" "}
+                  <span className="text-text-main font-semibold">
+                    {[
+                      filterDate === todayStr
+                        ? "Today"
+                        : filterDate === tomorrowStr
+                          ? "Tomorrow"
+                          : filterDate
+                            ? "Custom date"
+                            : null,
+                      filterCategory || null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </p>
+                <button
+                  onClick={() => {
+                    setFilterDate("");
+                    setFilterCategory("");
+                  }}
+                  className="text-[10px] font-sans text-text-muted underline underline-offset-2 hover:text-text-main transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ============ DESKTOP SIDEBAR ============ */}
       <div className="hidden lg:flex w-56 flex-shrink-0 border-r border-border-subtle flex-col px-5 py-8 gap-6 bg-background/80 backdrop-blur-md sticky top-0 h-screen overflow-y-auto">
         <div>
@@ -560,10 +709,8 @@ function Home() {
               }`}
             >
               {item.icon}
-
               <div className="flex items-center justify-between w-full">
                 <span>{item.label === "My Tasks" ? "Tasks" : item.label}</span>
-
                 {item.id === "missed" && missedTasks.length > 0 && (
                   <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full min-w-[18px] text-center">
                     {missedTasks.length}
@@ -589,17 +736,16 @@ function Home() {
           </button>
         </div>
       </div>
+
       {/* ============ MAIN AREA ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
+
         {/* ---- DESKTOP HEADER ---- */}
         <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-3">
             {[
               { label: "Today", value: todayStr },
-              {
-                label: "Tomorrow",
-                value: tomorrowStr,
-              },
+              { label: "Tomorrow", value: tomorrowStr },
               { label: "All", value: "" },
             ].map((item) => (
               <button
@@ -649,6 +795,7 @@ function Home() {
 
         {/* TWO-COLUMN CONTENT */}
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+
           {/* ---- TASK JOURNAL ---- */}
           <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 lg:pb-8">
             {/* Hero */}
@@ -870,7 +1017,7 @@ function Home() {
               </div>
             </div>
 
-            {/* Next Priority — warm card */}
+            {/* Next Priority */}
             <div className="bg-warn rounded-xl p-4">
               <p className="font-bold font-serif uppercase tracking-[0.18em] text-text mb-2">
                 Next Priority
@@ -964,6 +1111,7 @@ function Home() {
           </aside>
         </div>
       </div>
+
       {/* ============ MOBILE FAB ============ */}
       <button
         onClick={() => setIsCreatedModalOpen(true)}
@@ -971,6 +1119,7 @@ function Home() {
       >
         <Plus size={20} />
       </button>
+
       {/* ============ MOBILE BOTTOM NAV ============ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background/80 backdrop-blur-md">
         {navItems.map((item) => (
@@ -991,7 +1140,8 @@ function Home() {
           </button>
         ))}
       </nav>
-      {/* ============ MODAL ============ */}`
+
+      {/* ============ MODAL ============ */}
       {isCreatedModalOpen && (
         <TaskModal
           onClose={() => setIsCreatedModalOpen(false)}
@@ -1015,7 +1165,6 @@ function Home() {
           setPriority={setPriority}
         />
       )}
-      `
     </div>
   );
 }

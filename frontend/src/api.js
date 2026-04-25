@@ -49,4 +49,6 @@ export const loginUser = (data) => API.post("login/", data);
 export const registerUser = (data) => API.post("register/", data);
 export const reorderTasks = (data) => API.post("tasks/reorder/", data);
 export const completeTask = (id) => API.post(`tasks/${id}/complete/`);
+export const deleteArchivedTasks = (days) =>
+  API.delete(`tasks/auto-delete-archive/`, { params: { days } });
 export default API;

@@ -160,21 +160,24 @@ class TaskListCreateAPIView(APIView):
         archived = request.GET.get("archived")
 
         if include_archived == "true":
+            # Return every task regardless of archived/completed state
             tasks = (
                 Task.objects.select_related("category")
                 .filter(user=request.user)
                 .order_by("order")
             )
         elif archived == "true":
+            # Return only archived tasks (completed tasks stored for history)
             tasks = (
                 Task.objects.select_related("category")
-                .filter(user=request.user)
+                .filter(user=request.user, archived=True)
                 .order_by("order")
             )
         else:
+            # Default: active tasks only (not archived)
             tasks = (
                 Task.objects.select_related("category")
-                .filter(user=request.user)
+                .filter(user=request.user, archived=False)
                 .order_by("order")
             )
 
@@ -313,3 +316,29 @@ class TaskCompleteAPIView(APIView):
         return Response(
             {"message": "Recurring task completed, next occurrence created"}
         )
+
+
+class TaskAutoDeleteArchiveAPIView(APIView):
+    """
+    DELETE /tasks/auto-delete-archive/?days=30
+    Deletes archived tasks whose end_date is older than `days` days ago.
+    Called from the frontend when the Archive page loads (if the setting is on).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        try:
+            days = int(request.GET.get("days", 30))
+        except (TypeError, ValueError):
+            days = 30
+
+        cutoff = date.today() - timedelta(days=days)
+
+        deleted_qs = Task.objects.filter(
+            user=request.user,
+            archived=True,
+            end_date__lte=cutoff,
+        )
+        count, _ = deleted_qs.delete()
+
+        return Response({"deleted": count}, status=status.HTTP_200_OK)
