@@ -763,6 +763,20 @@ function Home() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Clear all — only visible when any filter is active */}
+            {(filterDate || filterCategory || searchPerson) && (
+              <button
+                onClick={() => {
+                  setFilterDate("");
+                  setFilterCategory("");
+                  setSearchPerson("");
+                }}
+                className="h-8 px-3 rounded-full text-xs font-sans border border-dashed border-text-muted text-text-muted hover:border-red-400 hover:text-red-400 transition-all flex items-center gap-1.5"
+              >
+                <span className="text-[10px]">✕</span>
+                Clear all
+              </button>
+            )}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
