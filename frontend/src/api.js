@@ -14,16 +14,14 @@ const isTokenValid = (token) => {
   }
 };
 
+// AFTER (fixed)
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
-
   if (token && isTokenValid(token)) {
     config.headers.Authorization = `Bearer ${token}`;
-  } else {
-    
-    localStorage.removeItem("access");
+  } else if (token && !isTokenValid(token)) {
+    localStorage.removeItem("access"); // only clear if expired, not if missing
   }
-
   return config;
 });
 
