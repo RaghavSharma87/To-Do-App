@@ -13,6 +13,8 @@ import {
   GripVertical,
   SlidersHorizontal,
   Filter,
+  Zap,
+  CheckCircle2,
 } from "lucide-react";
 import {
   DndContext,
@@ -51,6 +53,34 @@ import {
 // ---------------- CREDIT MAP ----------------
 const CREDITS = { high: 4, medium: 3, low: 1, none: 0 };
 
+// ---------------- PRIORITY CONFIG ----------------
+const PRIORITY_CONFIG = {
+  high: {
+    label: "High",
+    dot: "bg-rose-500",
+    badge: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
+    ring: "ring-rose-500/30",
+  },
+  medium: {
+    label: "Medium",
+    dot: "bg-amber-400",
+    badge: "bg-amber-400/10 text-amber-400 border border-amber-400/20",
+    ring: "ring-amber-400/30",
+  },
+  low: {
+    label: "Low",
+    dot: "bg-sky-400",
+    badge: "bg-sky-400/10 text-sky-400 border border-sky-400/20",
+    ring: "ring-sky-400/30",
+  },
+  none: {
+    label: null,
+    dot: "bg-border-subtle",
+    badge: null,
+    ring: null,
+  },
+};
+
 // ---------------- SORTABLE TASK ROW ----------------
 function SortableTask({ task, onToggle, onDelete, showDate }) {
   const {
@@ -65,89 +95,95 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0.35 : 1,
   };
 
-  const priorityBadge = {
-    high: { label: "High Priority", cls: "bg-text-main text-background" },
-    medium: {
-      label: "Medium",
-      cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
-    },
-    low: { label: "Low", cls: "bg-border-subtle text-text-muted" },
-    none: null,
-  };
-
-  const badge = priorityBadge[task.priority];
+  const pConfig = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.none;
 
   return (
     <motion.div
       ref={setNodeRef}
       style={style}
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
-      className="flex items-start gap-3 py-4 border-b border-border-subtle group last:border-b-0"
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ duration: 0.18 }}
+      className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-2 border transition-all duration-200
+        ${task.completed
+          ? "bg-border-subtle/20 border-border-subtle/30 opacity-60"
+          : "bg-card border-border-subtle hover:border-text-muted/40 hover:shadow-sm hover:shadow-black/10"
+        }`}
     >
+      {/* Priority accent line */}
+      {!task.completed && task.priority !== "none" && (
+        <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${pConfig.dot}`} />
+      )}
+
       {/* Drag Handle */}
       <div
         {...attributes}
         {...listeners}
-        className="mt-1 cursor-grab opacity-0 group-hover:opacity-40 sm:opacity-0 sm:group-hover:opacity-40 opacity-30 flex-shrink-0 text-text-muted touch-none"
+        className="cursor-grab opacity-0 group-hover:opacity-30 hover:!opacity-60 flex-shrink-0 text-text-muted touch-none transition-opacity"
       >
-        <GripVertical size={14} />
+        <GripVertical size={13} />
       </div>
 
-      {/* Toggle Circle */}
+      {/* Toggle */}
       <button
         onClick={() => onToggle(task)}
-        className={`mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex-shrink-0 transition-all ${
+        className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
           task.completed
             ? "bg-text-main border-text-main"
-            : "border-border-subtle hover:border-text-muted"
+            : `border-border-subtle hover:border-text-muted ${pConfig.ring ? `hover:ring-2 ${pConfig.ring}` : ""}`
         }`}
-      />
+      >
+        {task.completed && (
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+            <path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background"/>
+          </svg>
+        )}
+      </button>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p
-          className={`text-sm font-semibold font-serif leading-snug transition-colors ${
-            task.completed ? "line-through text-text-muted" : "text-text-main"
-          }`}
-        >
+        <p className={`text-sm font-medium leading-snug transition-colors ${
+          task.completed ? "line-through text-text-muted" : "text-text-main"
+        }`}>
           {task.title}
         </p>
-        <p className="text-xs text-text-muted font-sans mt-0.5">
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {task.person && task.person !== "Unassigned" && (
-            <span>{task.person} · </span>
+            <span className="text-[11px] text-text-muted font-sans">{task.person}</span>
           )}
-          Due: {showDate ? task.end_date : "Today"}
-          {task.end_time && ` at ${task.end_time}`}
+          {task.person && task.person !== "Unassigned" && (
+            <span className="text-text-muted/40 text-[10px]">·</span>
+          )}
+          <span className="text-[11px] text-text-muted font-sans">
+            {showDate ? task.end_date : "Today"}
+            {task.end_time && ` at ${task.end_time}`}
+          </span>
           {task.category_name && (
-            <span className="ml-2 inline-block px-2 py-0.5 rounded-full bg-background border border-border-subtle text-[10px] uppercase tracking-wide">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-background border border-border-subtle text-[10px] font-sans uppercase tracking-wide text-text-muted">
               {task.category_name}
             </span>
           )}
-        </p>
+        </div>
       </div>
 
       {/* Priority Badge */}
-      {badge && (
-        <span
-          className={`text-[10px] font-sans font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full flex-shrink-0 ${badge.cls}`}
-        >
-          {badge.label}
+      {pConfig.badge && (
+        <span className={`text-[10px] font-sans font-semibold uppercase tracking-widest px-2.5 py-1 rounded-lg flex-shrink-0 ${pConfig.badge}`}>
+          {pConfig.label}
         </span>
       )}
 
       {/* Delete */}
       <button
         onClick={() => onDelete(task.id)}
-        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity text-text-muted hover:text-red-400 mt-0.5 flex-shrink-0"
+        className="opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity text-text-muted hover:text-rose-400 flex-shrink-0"
       >
-        <Trash2 size={14} />
+        <Trash2 size={13} />
       </button>
     </motion.div>
   );
@@ -157,29 +193,16 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 function Home() {
   const navigate = useNavigate();
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // ---------------- STATE ----------------
   const { theme, toggleTheme } = useTheme();
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isCreatedModalOpen, setIsCreatedModalOpen] = useState(false);
   const [activeNav, setActiveNav] = useState("tasks");
-
   const [title, setTitle] = useState("");
   const [person, setPerson] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -189,25 +212,17 @@ function Home() {
   const [frequency, setFrequency] = useState("once");
   const [frequencyDays, setFrequencyDays] = useState([]);
   const [priority, setPriority] = useState("none");
-
   const [filterDate, setFilterDate] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
-  // NEW: toggle for mobile filter strip
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayLabel = new Date()
-    .toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })
+    .toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
     .toUpperCase();
 
-  // ---------------- FETCH ----------------
   const fetchTasks = async (query = "") => {
     try {
       const res = await getTasks(query);
@@ -258,8 +273,7 @@ function Home() {
     return () => clearTimeout(delay);
   }, [searchPerson, filterCategory, filterDate]);
 
-  // ---------------- DERIVED ----------------
-  const now = new Date();
+    const now = new Date();
   const tomorrowStr = new Date(Date.now() + 86400000)
     .toISOString()
     .split("T")[0];
@@ -300,10 +314,10 @@ function Home() {
 
   const efficiencyTasks = useMemo(() => {
     if (filterDate === todayStr) {
-      return tasks.filter((t) => t.end_date === todayStr);
+      return allTasks.filter((t) => t.end_date === todayStr);
     }
     if (filterDate === tomorrowStr) {
-      return tasks.filter((t) => t.end_date === tomorrowStr);
+      return allTasks.filter((t) => t.end_date === tomorrowStr);
     }
     return allTasks;
   }, [tasks, allTasks, filterDate, todayStr, tomorrowStr]);
@@ -328,11 +342,9 @@ function Home() {
   const penalty = missedTasks.length * 5;
   const adjustedEfficeincy = Math.max(0, completionPct - penalty);
 
-  // ---------------- ACTIONS ----------------
   const handleSubmit = async (e, timeStr, customDates = []) => {
     e.preventDefault();
     if (!title.trim()) return;
-
     if (frequency === "weekly" && frequencyDays.length === 0) {
       alert("Please select at least one day for the weekly frequency.");
       return;
@@ -341,12 +353,10 @@ function Home() {
       alert("Please select at least one date for the custom dates frequency.");
       return;
     }
-
     const resolvedEndDate =
       frequency === "custom_dates" && customDates.length > 0
         ? customDates.sort()[0]
         : endDate || todayStr;
-
     try {
       const res = await createTask({
         title,
@@ -361,21 +371,12 @@ function Home() {
         custom_dates: customDates,
         priority,
       });
-
-      const selectPersonality =
-        localStorage.getItem("notificationPersonality") || "politeness";
+      const selectPersonality = localStorage.getItem("notificationPersonality") || "politeness";
       const dueDateTime = `${resolvedEndDate}T${timeStr || "09:00"}`;
       scheduleTaskNotification(res.id, title, dueDateTime, selectPersonality);
-
-      setTitle("");
-      setPerson("");
-      setStartDate("");
-      setEndDate("");
-      setSearchPerson("");
-      setFrequency("once");
-      setFrequencyDays([]);
-      setPriority("none");
-      setIsCreatedModalOpen(false);
+      setTitle(""); setPerson(""); setStartDate(""); setEndDate("");
+      setSearchPerson(""); setFrequency("once"); setFrequencyDays([]);
+      setPriority("none"); setIsCreatedModalOpen(false);
       fetchTasks();
     } catch (err) {
       console.error("Failed to create task", err);
@@ -418,28 +419,14 @@ function Home() {
     await reorderTasks(reordered.map((t, i) => ({ id: t.id, order: i })));
   };
 
-  // ---------------- HELPERS ----------------
-  // Compute sticky top offset for mobile filter strip
-  // Top bar: ~57px. Search bar (if open): ~48px.
   const mobileFilterTop = showMobileSearch ? "top-[105px]" : "top-[57px]";
 
-  // Height of filter strip so content doesn't hide beneath it on mobile
-  const filterStripHeight = showMobileFilters ? "72px" : "40px";
-
-  // ---------------- NAV ITEMS ----------------
   const navItems = [
     {
       id: "tasks",
-      label: "My Tasks",
+      label: "Tasks",
       icon: (
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        >
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="2" y="2" width="5" height="5" rx="1" />
           <rect x="9" y="2" width="5" height="5" rx="1" />
           <rect x="2" y="9" width="5" height="5" rx="1" />
@@ -448,84 +435,46 @@ function Home() {
       ),
       onClick: () => setActiveNav("tasks"),
     },
-    {
-      id: "categories",
-      label: "Categories",
-      icon: <Tag size={15} />,
-      onClick: () => {
-        setActiveNav("categories");
-        navigate("/categories");
-      },
-    },
-    {
-      id: "archive",
-      label: "Archive",
-      icon: <Archive size={15} />,
-      onClick: () => {
-        setActiveNav("archive");
-        navigate("/archive");
-      },
-    },
-    {
-      id: "bin",
-      label: "Bin",
-      icon: <Trash size={15} />,
-      onClick: () => setActiveNav("bin"),
-    },
-    {
-      id: "settings",
-      label: "Settings",
-      icon: <Settings size={15} />,
-      onClick: () => {
-        navigate("/settings");
-        setActiveNav("settings");
-      },
-    },
-    {
-      id: "back",
-      label: "Back",
-      icon: <ArrowBigLeft size={15} />,
-      onClick: () => navigate("/"),
-    },
+    { id: "categories", label: "Categories", icon: <Tag size={15} />, onClick: () => { setActiveNav("categories"); navigate("/categories"); } },
+    { id: "archive", label: "Archive", icon: <Archive size={15} />, onClick: () => { setActiveNav("archive"); navigate("/archive"); } },
+    { id: "bin", label: "Bin", icon: <Trash size={15} />, onClick: () => setActiveNav("bin") },
+    { id: "settings", label: "Settings", icon: <Settings size={15} />, onClick: () => { navigate("/settings"); setActiveNav("settings"); } },
+    
     {
       id: "missed",
       label: "Missed",
       icon: <AlertTriangle size={15} />,
-      onClick: () => {
-        setActiveNav("missed");
-        navigate("/missed-deadlines");
-      },
+      onClick: () => { setActiveNav("missed"); navigate("/missed-deadlines"); },
+      badge: missedTasks.length,
     },
+    { id: "logout", label: "Logout", icon: <ArrowBigLeft size={15} />, onClick: () => navigate("/") },
   ];
 
-  // ---------------- UI ----------------
+  const efficiencyColor = adjustedEfficeincy >= 75
+    ? "from-emerald-500 to-teal-400"
+    : adjustedEfficeincy >= 40
+    ? "from-amber-500 to-yellow-400"
+    : "from-rose-500 to-red-400";
+
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-background/60 backdrop-blur-none transition-colors duration-500 font-serif">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-background transition-colors duration-500 font-sans">
 
       {/* ============ MOBILE TOP BAR ============ */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-20">
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-0 z-20">
         <div>
-          <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted">
-            {todayLabel}
-          </p>
-          <p className="text-sm font-bold font-serif text-text-main">
-            My Workspace
-          </p>
+          <p className="text-[9px] font-sans uppercase tracking-[0.2em] text-text-muted">{todayLabel}</p>
+          <p className="text-sm font-bold text-text-main tracking-tight">My Workspace</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Filter toggle button — shows active dot when a filter is applied */}
           <button
             onClick={() => setShowMobileFilters((v) => !v)}
-            className={`relative w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
-              showMobileFilters
-                ? "border-text-main text-text-main bg-border-subtle"
-                : "border-border-subtle text-text-muted"
+            className={`relative w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
+              showMobileFilters ? "border-text-main text-text-main bg-border-subtle" : "border-border-subtle text-text-muted"
             }`}
           >
             <Filter size={14} />
-            {/* Active indicator dot */}
             {(filterDate || filterCategory) && (
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-rose-500" />
             )}
           </button>
           <button
@@ -543,26 +492,21 @@ function Home() {
         </div>
       </div>
 
-      {/* ── Mobile search bar (toggleable) ── */}
       {showMobileSearch && (
-        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-[57px] z-20">
+        <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-[57px] z-20">
           <div className="relative">
-            <Search
-              size={13}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-            />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input
               placeholder="Search assignee..."
               value={searchPerson}
               onChange={(e) => setSearchPerson(e.target.value)}
-              className="h-8 w-full pl-8 pr-3 bg-card border border-border-subtle rounded-full text-xs text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors font-sans"
+              className="h-8 w-full pl-8 pr-3 bg-card border border-border-subtle rounded-xl text-xs text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors"
               autoFocus
             />
           </div>
         </div>
       )}
 
-      {/* ── Mobile filter strip (toggleable) ── */}
       <AnimatePresence>
         {showMobileFilters && (
           <motion.div
@@ -571,13 +515,10 @@ function Home() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className={`lg:hidden sticky ${mobileFilterTop} z-20 border-b border-border-subtle bg-background/90 backdrop-blur-md overflow-hidden`}
+            className={`lg:hidden sticky ${mobileFilterTop} z-20 border-b border-border-subtle bg-background/95 backdrop-blur-xl overflow-hidden`}
           >
-            {/* Date filters row */}
             <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5 overflow-x-auto scrollbar-hide">
-              <span className="text-[9px] font-sans uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
-                Date
-              </span>
+              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">Date</span>
               {[
                 { label: "Today", value: todayStr },
                 { label: "Tomorrow", value: tomorrowStr },
@@ -585,10 +526,8 @@ function Home() {
               ].map((item) => (
                 <button
                   key={item.label}
-                  onClick={() =>
-                    setFilterDate(filterDate === item.value && item.value !== "" ? "" : item.value)
-                  }
-                  className={`px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
+                  onClick={() => setFilterDate(filterDate === item.value && item.value !== "" ? "" : item.value)}
+                  className={`px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
                     filterDate === item.value
                       ? "bg-text-main text-background border-text-main font-semibold"
                       : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
@@ -598,141 +537,80 @@ function Home() {
                 </button>
               ))}
             </div>
-
-            {/* Category filters row */}
             <div className="flex items-center gap-2 px-4 pt-1 pb-2.5 overflow-x-auto scrollbar-hide">
-              <span className="text-[9px] font-sans uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
-                Cat.
-              </span>
-              {/* "All" pill */}
+              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">Cat.</span>
               <button
                 onClick={() => setFilterCategory("")}
-                className={`px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
-                  filterCategory === ""
-                    ? "bg-text-main text-background border-text-main font-semibold"
-                    : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
+                className={`px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
+                  filterCategory === "" ? "bg-text-main text-background border-text-main font-semibold" : "border-border-subtle text-text-muted"
                 }`}
               >
                 All
               </button>
               {categories.map((cat) => {
-                const count = tasks.filter(
-                  (t) =>
-                    t.category_name === cat.name && !t.completed && !t.archived,
-                ).length;
+                const count = tasks.filter((t) => t.category_name === cat.name && !t.completed && !t.archived).length;
                 return (
                   <button
                     key={cat.id}
-                    onClick={() =>
-                      setFilterCategory(
-                        filterCategory === cat.name ? "" : cat.name,
-                      )
-                    }
-                    className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-sans border whitespace-nowrap flex-shrink-0 transition-all ${
-                      filterCategory === cat.name
-                        ? "bg-text-main text-background border-text-main font-semibold"
-                        : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
+                    onClick={() => setFilterCategory(filterCategory === cat.name ? "" : cat.name)}
+                    className={`flex items-center gap-1.5 px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
+                      filterCategory === cat.name ? "bg-text-main text-background border-text-main font-semibold" : "border-border-subtle text-text-muted"
                     }`}
                   >
                     {cat.name}
-                    {count > 0 && (
-                      <span
-                        className={`text-[9px] font-sans font-bold rounded-full px-1 ${
-                          filterCategory === cat.name
-                            ? "bg-background/20 text-background"
-                            : "bg-border-subtle text-text-muted"
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    )}
+                    {count > 0 && <span className="text-[9px] font-bold">{count}</span>}
                   </button>
                 );
               })}
             </div>
-
-            {/* Active filter summary + clear */}
-            {(filterDate || filterCategory) && (
-              <div className="flex items-center justify-between px-4 pb-2">
-                <p className="text-[10px] font-sans text-text-muted">
-                  Filtered by:{" "}
-                  <span className="text-text-main font-semibold">
-                    {[
-                      filterDate === todayStr
-                        ? "Today"
-                        : filterDate === tomorrowStr
-                          ? "Tomorrow"
-                          : filterDate
-                            ? "Custom date"
-                            : null,
-                      filterCategory || null,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </span>
-                </p>
-                <button
-                  onClick={() => {
-                    setFilterDate("");
-                    setFilterCategory("");
-                  }}
-                  className="text-[10px] font-sans text-text-muted underline underline-offset-2 hover:text-text-main transition-colors"
-                >
-                  Clear all
-                </button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* ============ DESKTOP SIDEBAR ============ */}
-      <div className="hidden lg:flex w-56 flex-shrink-0 border-r border-border-subtle flex-col px-5 py-8 gap-6 bg-background/80 backdrop-blur-md sticky top-0 h-screen overflow-y-auto">
-        <div>
-          <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-1">
-            {todayLabel}
-          </p>
-          <p className="text-sm font-bold font-serif text-text-main">
-            My Workspace
-          </p>
+      <div className="hidden lg:flex w-[220px] flex-shrink-0 border-r border-border-subtle flex-col px-4 py-7 gap-5 bg-background sticky top-0 h-screen overflow-y-auto">
+        <div className="px-2">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-text-muted mb-1">{todayLabel}</p>
+          <p className="text-base font-bold text-text-main tracking-tight">My Workspace</p>
         </div>
 
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-0.5">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={item.onClick}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-sans transition-colors text-left ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] transition-all text-left group ${
                 activeNav === item.id
-                  ? "bg-border-subtle text-text-main font-semibold"
-                  : "text-text-muted hover:text-text-main"
+                  ? "bg-text-main/8 text-text-main font-semibold"
+                  : "text-text-muted hover:text-text-main hover:bg-border-subtle/50"
               }`}
             >
-              {item.icon}
-              <div className="flex items-center justify-between w-full">
-                <span>{item.label === "My Tasks" ? "Tasks" : item.label}</span>
-                {item.id === "missed" && missedTasks.length > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full min-w-[18px] text-center">
-                    {missedTasks.length}
-                  </span>
-                )}
-              </div>
+              <span className={`transition-colors ${activeNav === item.id ? "text-text-main" : "text-text-muted group-hover:text-text-main"}`}>
+                {item.icon}
+              </span>
+              <span className="flex-1">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[18px] text-center font-bold leading-none">
+                  {item.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
 
-        <div className="mt-auto flex items-center gap-2">
+        <div className="mt-auto flex flex-col gap-2 px-1">
           <button
             onClick={toggleTheme}
-            className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted hover:text-text-main transition-colors"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] text-text-muted hover:text-text-main hover:bg-border-subtle/50 transition-all"
           >
-            {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+            {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+            <span>{theme === "light" ? "Dark mode" : "Light mode"}</span>
           </button>
           <button
             onClick={() => setIsCreatedModalOpen(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-xl bg-text-main text-background text-xs font-sans font-medium transition-opacity hover:opacity-80"
+            className="flex items-center justify-center gap-2 h-9 rounded-xl bg-text-main text-background text-[13px] font-semibold transition-opacity hover:opacity-80"
           >
-            <Plus size={13} /> New Task
+            <Plus size={14} /> New Task
           </button>
         </div>
       </div>
@@ -741,8 +619,8 @@ function Home() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* ---- DESKTOP HEADER ---- */}
-        <header className="hidden lg:flex items-center justify-between px-8 py-4 border-b border-border-subtle bg-background/80 backdrop-blur-md sticky top-0 z-10">
-          <div className="flex items-center gap-3">
+        <header className="hidden lg:flex items-center justify-between px-8 py-3.5 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-0 z-10">
+          <div className="flex items-center gap-1.5">
             {[
               { label: "Today", value: todayStr },
               { label: "Tomorrow", value: tomorrowStr },
@@ -751,10 +629,10 @@ function Home() {
               <button
                 key={item.label}
                 onClick={() => setFilterDate(item.value)}
-                className={`px-3 h-8 rounded-full text-xs font-sans border transition-all ${
+                className={`px-3.5 h-8 rounded-lg text-[12px] font-medium border transition-all ${
                   filterDate === item.value
-                    ? "bg-primary text-background border-primary"
-                    : "border-border-subtle text-text-muted hover:border-text-muted"
+                    ? "bg-text-main text-background border-text-main"
+                    : "border-border-subtle text-text-muted hover:border-text-muted hover:text-text-main"
                 }`}
               >
                 {item.label}
@@ -762,47 +640,37 @@ function Home() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Clear all — only visible when any filter is active */}
+          <div className="flex items-center gap-2">
             {(filterDate || filterCategory || searchPerson) && (
               <button
-                onClick={() => {
-                  setFilterDate("");
-                  setFilterCategory("");
-                  setSearchPerson("");
-                }}
-                className="h-8 px-3 rounded-full text-xs font-sans border border-dashed border-text-muted text-text-muted hover:border-red-400 hover:text-red-400 transition-all flex items-center gap-1.5"
+                onClick={() => { setFilterDate(""); setFilterCategory(""); setSearchPerson(""); }}
+                className="h-8 px-3 rounded-lg text-[12px] border border-dashed border-border-subtle text-text-muted hover:border-rose-400/60 hover:text-rose-400 transition-all flex items-center gap-1.5"
               >
-                <span className="text-[10px]">✕</span>
-                Clear all
+                <span className="text-[10px]">✕</span> Clear
               </button>
             )}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-8 px-3 bg-card border border-border-subtle rounded-full text-xs text-text-muted font-sans outline-none focus:border-text-muted transition-colors"
+              className="h-8 px-3 bg-card border border-border-subtle rounded-lg text-[12px] text-text-muted outline-none focus:border-text-muted transition-colors appearance-none cursor-pointer pr-7"
+              style={{ backgroundImage: "none" }}
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>
-                  {cat.name}
-                </option>
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}
             </select>
             <div className="relative">
-              <Search
-                size={13}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-              />
+              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
               <input
                 placeholder="Search assignee..."
                 value={searchPerson}
                 onChange={(e) => setSearchPerson(e.target.value)}
-                className="h-8 pl-8 pr-3 bg-card border border-border-subtle rounded-full text-xs text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors font-sans w-full sm:w-40"
+                className="h-8 pl-8 pr-3 bg-card border border-border-subtle rounded-lg text-[12px] text-text-main placeholder-text-muted outline-none focus:border-text-muted transition-colors w-40"
               />
             </div>
-            <button className="w-8 h-8 rounded-xl border border-border-subtle flex items-center justify-center text-text-muted hover:border-text-muted hover:text-text-main transition-colors">
-              <SlidersHorizontal size={14} />
+            <button className="w-8 h-8 rounded-lg border border-border-subtle flex items-center justify-center text-text-muted hover:border-text-muted hover:text-text-main transition-colors">
+              <SlidersHorizontal size={13} />
             </button>
           </div>
         </header>
@@ -811,71 +679,67 @@ function Home() {
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
 
           {/* ---- TASK JOURNAL ---- */}
-          <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-32 lg:pb-8">
+          <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-7 pb-32 lg:pb-8">
+
             {/* Hero */}
             <div className="mb-8">
-              <p className="text-[10px] font-sans uppercase tracking-[0.18em] text-text-muted mb-2">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-3 font-medium">
                 Current Session
               </p>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-semibold font-serif text-text-main leading-tight max-w-sm">
+              <h2 className="text-3xl lg:text-4xl font-bold text-text-main leading-[1.15] tracking-tight max-w-xs">
                 Curating your Tasks for today.
               </h2>
-              <div className="w-10 h-px bg-text-main mt-5" />
+              <div className="flex items-center gap-3 mt-4">
+                <div className="h-px w-8 bg-text-main/30" />
+                <span className="text-[11px] text-text-muted font-medium">
+                  {tasksDueToday.length} due today · {otherTasks.length} upcoming
+                </span>
+              </div>
             </div>
 
             {/* ---- MOBILE: Next Priority + Efficiency ---- */}
             <div className="lg:hidden flex flex-col gap-3 mb-8">
               {/* Next Priority card */}
-              <div className="bg-warn rounded-xl p-4">
-                <p className="font-bold text-[9px] font-serif uppercase tracking-[0.18em] text-background mb-1">
-                  Next Priority
-                </p>
+              <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-rose-500 to-orange-400">
+                <div className="absolute inset-0 opacity-10" style={{
+                  backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)"
+                }} />
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/70 mb-2">Next Priority</p>
                 {tasksDueToday[0] ? (
                   <>
-                    <p className="text-sm font-serif font-bold text-background leading-snug">
-                      {tasksDueToday[0].title}
-                    </p>
-                    <p className="text-[10px] font-sans text-text mt-0.5">
-                      {tasksDueToday[0].category_name}
-                    </p>
+                    <p className="text-base font-bold text-white leading-snug">{tasksDueToday[0].title}</p>
+                    {tasksDueToday[0].category_name && (
+                      <span className="mt-2 inline-block text-[10px] font-semibold uppercase tracking-wider text-white/70 bg-white/10 px-2 py-0.5 rounded-md">
+                        {tasksDueToday[0].category_name}
+                      </span>
+                    )}
                   </>
                 ) : (
-                  <p className="text-sm font-serif font-bold text-background leading-snug">
-                    All caught up for today.
-                  </p>
+                  <p className="text-base font-bold text-white">All caught up! 🎉</p>
                 )}
               </div>
 
               {/* Efficiency strip */}
-              <div className="bg-card border border-border-subtle rounded-xl p-3">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted">
-                    Task Efficiency
-                  </span>
-                  <span className="text-[11px] font-sans font-semibold text-text-main">
-                    {adjustedEfficeincy}%
-                  </span>
+              <div className="bg-card border border-border-subtle rounded-2xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Zap size={11} className="text-text-muted" />
+                    <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-text-muted">Efficiency</span>
+                  </div>
+                  <span className="text-sm font-bold text-text-main">{adjustedEfficeincy}%</span>
                 </div>
-                <div className="h-[3px] rounded-full bg-border-subtle overflow-hidden">
+                <div className="h-1.5 rounded-full bg-border-subtle overflow-hidden">
                   <div
-                    className="h-full bg-text-main rounded-full transition-all duration-500"
+                    className={`h-full bg-gradient-to-r ${efficiencyColor} rounded-full transition-all duration-700`}
                     style={{ width: `${adjustedEfficeincy}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between mt-2">
-                  <p className="text-[10px] font-sans text-text-muted">
-                    {earnedCredits} / {totalCredits} credits
-                  </p>
+                <div className="flex items-center justify-between mt-2.5">
+                  <p className="text-[11px] text-text-muted">{earnedCredits} / {totalCredits} credits</p>
                   <div className="flex items-center gap-1">
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-text-main text-background">
-                      H·4
-                    </span>
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">
-                      M·3
-                    </span>
-                    <span className="text-[9px] font-sans px-1.5 py-0.5 rounded-full bg-border-subtle text-text-muted">
-                      L·1
-                    </span>
+                    {[["H", "bg-rose-500/10 text-rose-400"], ["M", "bg-amber-400/10 text-amber-400"], ["L", "bg-sky-400/10 text-sky-400"]].map(([label, cls]) => (
+                      <span key={label} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${cls}`}>{label}</span>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -884,32 +748,19 @@ function Home() {
             {/* Due Today Section */}
             {tasksDueToday.length > 0 && (
               <section className="mb-8">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
-                    Due Today
-                  </h3>
-                  <span className="text-[10px] font-sans text-text-muted">
-                    {tasksDueToday.length} pending
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">Due Today</h3>
+                    <span className="text-[10px] bg-rose-500/10 text-rose-400 font-bold px-2 py-0.5 rounded-md">
+                      {tasksDueToday.length} pending
+                    </span>
+                  </div>
                 </div>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={makeHandleDragEnd(tasksDueToday)}
-                >
-                  <SortableContext
-                    items={tasksDueToday.map((t) => t.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(tasksDueToday)}>
+                  <SortableContext items={tasksDueToday.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                     <AnimatePresence>
                       {tasksDueToday.map((task) => (
-                        <SortableTask
-                          key={task.id}
-                          task={task}
-                          onToggle={handleToggle}
-                          onDelete={handleDelete}
-                          showDate={false}
-                        />
+                        <SortableTask key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} showDate={false} />
                       ))}
                     </AnimatePresence>
                   </SortableContext>
@@ -920,32 +771,19 @@ function Home() {
             {/* All Tasks Section */}
             {otherTasks.length > 0 && (
               <section>
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="text-[10px] font-sans uppercase tracking-[0.12em] font-semibold text-text-main">
-                    All Tasks
-                  </h3>
-                  <span className="text-[10px] font-sans text-text-muted">
-                    {otherTasks.length} entries
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">Upcoming</h3>
+                    <span className="text-[10px] bg-border-subtle text-text-muted font-bold px-2 py-0.5 rounded-md">
+                      {otherTasks.length} entries
+                    </span>
+                  </div>
                 </div>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={makeHandleDragEnd(otherTasks)}
-                >
-                  <SortableContext
-                    items={otherTasks.map((t) => t.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(otherTasks)}>
+                  <SortableContext items={otherTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                     <AnimatePresence>
                       {otherTasks.map((task) => (
-                        <SortableTask
-                          key={task.id}
-                          task={task}
-                          onToggle={handleToggle}
-                          onDelete={handleDelete}
-                          showDate={true}
-                        />
+                        <SortableTask key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} showDate={true} />
                       ))}
                     </AnimatePresence>
                   </SortableContext>
@@ -954,19 +792,20 @@ function Home() {
             )}
 
             {tasks.length === 0 && (
-              <div className="text-center py-24">
-                <p className="text-text-muted text-xs font-sans tracking-wide uppercase">
-                  No tasks yet. Click + to create one.
-                </p>
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-border-subtle flex items-center justify-center text-text-muted">
+                  <CheckCircle2 size={20} />
+                </div>
+                <p className="text-text-muted text-xs uppercase tracking-wide">No tasks yet. Click + to create one.</p>
               </div>
             )}
 
             {/* Insert row */}
             <button
               onClick={() => setIsCreatedModalOpen(true)}
-              className="flex items-center gap-2 mt-4 text-text-muted hover:text-text-main text-xs font-sans transition-colors group"
+              className="flex items-center gap-2 mt-5 text-text-muted hover:text-text-main text-[12px] transition-colors group"
             >
-              <span className="w-5 h-5 rounded-full border border-dashed border-border-subtle group-hover:border-text-muted flex items-center justify-center transition-colors text-[13px]">
+              <span className="w-5 h-5 rounded-lg border border-dashed border-border-subtle group-hover:border-text-muted flex items-center justify-center transition-colors text-[13px]">
                 +
               </span>
               Insert Task Entry
@@ -974,57 +813,39 @@ function Home() {
           </main>
 
           {/* ---- DESKTOP RIGHT PANEL ---- */}
-          <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-8 flex-col gap-7 bg-background/80 backdrop-blur-md overflow-y-auto">
+          <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-7 flex-col gap-7 bg-background overflow-y-auto">
+
             {/* Efficiency */}
             <div>
-              <p className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted mb-3">
-                Task Efficiency
-              </p>
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[10px] font-sans text-text-muted">
-                  Credits earned
-                </span>
-                <span className="text-[11px] font-sans font-semibold text-text-main">
-                  {adjustedEfficeincy}%
-                </span>
+              <div className="flex items-center gap-1.5 mb-3">
+                <Zap size={10} className="text-text-muted" />
+                <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted">Task Efficiency</p>
               </div>
-              <div className="h-[3px] rounded-full bg-border-subtle overflow-hidden">
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-[11px] text-text-muted">Credits earned</span>
+                <span className="text-[12px] font-bold text-text-main">{adjustedEfficeincy}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-border-subtle overflow-hidden">
                 <div
-                  className="h-full bg-text-main rounded-full transition-all duration-500"
+                  className={`h-full bg-gradient-to-r ${efficiencyColor} rounded-full transition-all duration-700`}
                   style={{ width: `${adjustedEfficeincy}%` }}
                 />
               </div>
-              <p className="text-[10px] font-sans text-text-muted mt-2 leading-relaxed">
-                {earnedCredits} of {totalCredits} credits ·{" "}
-                {completedTasks.length} tasks done
+              <p className="text-[10px] text-text-muted mt-2">
+                {earnedCredits} of {totalCredits} credits · {completedTasks.length} done
               </p>
-
-              {/* Credit legend */}
-              <div className="mt-3 flex flex-col gap-1.5">
+              <div className="mt-3.5 flex flex-col gap-1.5">
                 {[
-                  { label: "High priority", credit: 4, key: "high" },
-                  { label: "Medium priority", credit: 3, key: "medium" },
-                  { label: "Low priority", credit: 1, key: "low" },
-                  { label: "No priority", credit: 0, key: "none" },
+                  { label: "High priority", credit: 4, key: "high", color: "text-rose-400" },
+                  { label: "Medium priority", credit: 3, key: "medium", color: "text-amber-400" },
+                  { label: "Low priority", credit: 1, key: "low", color: "text-sky-400" },
+                  { label: "No priority", credit: 0, key: "none", color: "text-text-muted" },
                 ].map((row) => {
-                  const hasAny = activeTasks.some(
-                    (t) => t.priority === row.key,
-                  );
+                  const hasAny = activeTasks.some((t) => t.priority === row.key);
                   return (
-                    <div
-                      key={row.key}
-                      className="flex items-center justify-between"
-                    >
-                      <span
-                        className={`text-[10px] font-sans ${hasAny ? "text-text-muted" : "text-text-muted/30"}`}
-                      >
-                        · {row.label}
-                      </span>
-                      <span
-                        className={`text-[10px] font-sans font-semibold ${hasAny ? "text-text-main" : "text-text-muted/30"}`}
-                      >
-                        {row.credit} cr
-                      </span>
+                    <div key={row.key} className="flex items-center justify-between">
+                      <span className={`text-[10px] ${hasAny ? row.color : "text-text-muted/25"}`}>· {row.label}</span>
+                      <span className={`text-[10px] font-bold ${hasAny ? "text-text-main" : "text-text-muted/25"}`}>{row.credit} cr</span>
                     </div>
                   );
                 })}
@@ -1032,56 +853,46 @@ function Home() {
             </div>
 
             {/* Next Priority */}
-            <div className="bg-warn rounded-xl p-4">
-              <p className="font-bold font-serif uppercase tracking-[0.18em] text-text mb-2">
-                Next Priority
-              </p>
+            <div className="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-rose-500 to-orange-600 animate-fade-in">
+              <div className="absolute inset-0 opacity-10" style={{
+                backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 55%)"
+              }} />
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white mb-2">Next Priority</p>
               {tasksDueToday[0] ? (
                 <>
-                  <p className="text-sm font-serif font-bold text-text leading-snug">
-                    {tasksDueToday[0].title}
-                  </p>
-                  <p className="text-[12px] font-serif uppercase text-text mt-1">
-                    {tasksDueToday[0].category_name}
-                  </p>
+                  <p className="text-[13px] font-bold text-white leading-snug">{tasksDueToday[0].title}</p>
+                  {tasksDueToday[0].category_name && (
+                    <p className="text-[10px] text-white/70 mt-1.5 uppercase tracking-wider font-semibold">
+                      {tasksDueToday[0].category_name}
+                    </p>
+                  )}
                 </>
               ) : (
-                <p className="text-sm font-serif font-bold text-text leading-snug">
-                  All caught up for today.
-                </p>
+                <p className="text-[13px] font-bold text-white">All caught up! 🎉</p>
               )}
             </div>
 
-            {/* Categories quick list */}
+            {/* Categories */}
             <div>
-              <p className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted mb-3">
-                Categories
-              </p>
-              <div className="flex flex-col gap-1.5">
+              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">Categories</p>
+              <div className="flex flex-col gap-0.5">
                 {categories.slice(0, 6).map((cat) => {
-                  const count = tasks.filter(
-                    (t) =>
-                      t.category_name === cat.name &&
-                      !t.completed &&
-                      !t.archived,
-                  ).length;
+                  const count = tasks.filter((t) => t.category_name === cat.name && !t.completed && !t.archived).length;
                   return (
                     <button
                       key={cat.id}
-                      onClick={() =>
-                        setFilterCategory(
-                          filterCategory === cat.name ? "" : cat.name,
-                        )
-                      }
-                      className={`flex items-center justify-between text-[11px] font-sans px-0 py-1 border-b border-border-subtle/50 transition-colors text-left ${
+                      onClick={() => setFilterCategory(filterCategory === cat.name ? "" : cat.name)}
+                      className={`flex items-center justify-between text-[11px] px-2.5 py-2 rounded-lg transition-all text-left ${
                         filterCategory === cat.name
-                          ? "text-text-main font-semibold"
-                          : "text-text-muted hover:text-text-main"
+                          ? "bg-text-main/8 text-text-main font-semibold"
+                          : "text-text-muted hover:text-text-main hover:bg-border-subtle/40"
                       }`}
                     >
                       <span>· {cat.name}</span>
                       {count > 0 && (
-                        <span className="text-[10px]">{count}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                          filterCategory === cat.name ? "bg-text-main text-background" : "bg-border-subtle text-text-muted"
+                        }`}>{count}</span>
                       )}
                     </button>
                   );
@@ -1091,35 +902,26 @@ function Home() {
 
             {/* Deadlines */}
             <div>
-              <p className="text-[9px] font-sans uppercase tracking-[0.2em] font-semibold text-text-muted mb-3">
-                Deadlines
-              </p>
-              <div className="flex flex-col gap-2.5">
+              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">Deadlines</p>
+              <div className="flex flex-col gap-3">
                 {tasks
                   .filter((t) => !t.completed && !t.archived && t.end_date)
                   .sort((a, b) => a.end_date.localeCompare(b.end_date))
                   .slice(0, 4)
-                  .map((t) => (
-                    <div key={t.id} className="flex gap-2 items-start">
-                      <div className="w-1 h-1 rounded-full bg-text-main mt-1.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-[11px] font-sans font-medium text-text-main leading-snug">
-                          {t.title}
-                        </p>
-                        <p className="text-[10px] font-sans text-text-muted">
-                          In{" "}
-                          {Math.max(
-                            0,
-                            Math.ceil(
-                              (new Date(t.end_date) - new Date(todayStr)) /
-                                86400000,
-                            ),
-                          )}{" "}
-                          days
-                        </p>
+                  .map((t) => {
+                    const daysLeft = Math.max(0, Math.ceil((new Date(t.end_date) - new Date(todayStr)) / 86400000));
+                    return (
+                      <div key={t.id} className="flex gap-2.5 items-start">
+                        <div className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${daysLeft === 0 ? "bg-rose-500" : daysLeft <= 2 ? "bg-amber-400" : "bg-text-main"}`} />
+                        <div>
+                          <p className="text-[11px] font-medium text-text-main leading-snug">{t.title}</p>
+                          <p className={`text-[10px] mt-0.5 ${daysLeft === 0 ? "text-rose-400 font-semibold" : "text-text-muted"}`}>
+                            {daysLeft === 0 ? "Due today" : `In ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           </aside>
@@ -1129,25 +931,25 @@ function Home() {
       {/* ============ MOBILE FAB ============ */}
       <button
         onClick={() => setIsCreatedModalOpen(true)}
-        className="lg:hidden fixed bottom-20 right-5 w-12 h-12 rounded-full bg-primary text-background flex items-center justify-center z-30 shadow-lg"
+        className="lg:hidden fixed bottom-20 right-5 w-12 h-12 rounded-2xl bg-text-main text-background flex items-center justify-center z-30 shadow-xl shadow-black/20"
       >
         <Plus size={20} />
       </button>
 
       {/* ============ MOBILE BOTTOM NAV ============ */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background/80 backdrop-blur-md">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex border-t border-border-subtle bg-background/90 backdrop-blur-xl">
         {navItems.map((item) => (
           <button
             key={item.id}
             onClick={item.onClick}
-            className={`flex-1 flex flex-col items-center gap-1 py-2 text-[9px] font-sans uppercase tracking-[0.08em] transition-colors relative ${
+            className={`flex-1 flex flex-col items-center gap-1 py-2 text-[9px] uppercase tracking-[0.08em] transition-colors relative ${
               activeNav === item.id ? "text-text-main" : "text-text-muted"
             }`}
           >
             <span>{item.icon}</span>
             {item.label === "My Tasks" ? "Tasks" : item.label}
             {item.id === "tasks" && tasksDueToday.length > 0 && (
-              <span className="absolute top-1.5 right-[calc(50%-18px)] w-3.5 h-3.5 bg-primary text-background text-[8px] rounded-full flex items-center justify-center font-bold">
+              <span className="absolute top-1.5 right-[calc(50%-18px)] w-3.5 h-3.5 bg-rose-500 text-background text-[8px] rounded-full flex items-center justify-center font-bold">
                 {tasksDueToday.length}
               </span>
             )}
