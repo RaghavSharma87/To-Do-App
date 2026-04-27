@@ -49,7 +49,7 @@ import {
   scheduleTaskNotification,
   clearScheduledNotification,
 } from "../utils/notifications";
-
+import { keepAlive } from "../hooks/keepAlive";
 // ---------------- CREDIT MAP ----------------
 const CREDITS = { high: 4, medium: 3, low: 1, none: 0 };
 
@@ -191,6 +191,7 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 
 // ---------------- HOME ----------------
 function Home() {
+  keepAlive();
   const navigate = useNavigate();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

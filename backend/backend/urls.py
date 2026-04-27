@@ -16,6 +16,8 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.http import JsonResponse
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.urls import path
 from tasks.views import (
     TaskListCreateAPIView,
@@ -33,6 +35,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/register/", RegisterUserAPIView.as_view()),
     path("api/login/", LoginAPIView.as_view()),
+    path("api/token/refresh/", TokenRefreshView.as_view()),
     path("api/categories/", CategoryListCreateAPIView.as_view()),
     path("api/categories/<int:pk>/", CategoryDeleteAPIView.as_view()),
     path("api/tasks/", TaskListCreateAPIView.as_view()),
@@ -40,5 +43,6 @@ urlpatterns = [
     path("api/tasks/<int:pk>/", TaskDetailAPIView.as_view()),
     path("api/tasks/reorder/", TaskReorderAPIView.as_view()),
     path("api/tasks/<int:pk>/complete/", TaskCompleteAPIView.as_view()),
+    path("api/health/", lambda req : JsonResponse({"status":"ok"})),
     
 ]

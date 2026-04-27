@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sun, Moon, Archive, Tag, Trash, Settings, Plus, Layers,
 } from "lucide-react";
-
+import { keepAlive } from "../hooks/keepAlive";
 function Categories() {
+  keepAlive();
   const [categories, setCategories] = useState([]);
   const [newCategory, setNewCategory] = useState("");
   const { theme, toggleTheme } = useTheme();
