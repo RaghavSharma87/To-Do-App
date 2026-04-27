@@ -701,7 +701,7 @@ function Home() {
             {/* ---- MOBILE: Next Priority + Efficiency ---- */}
             <div className="lg:hidden flex flex-col gap-3 mb-8">
               {/* Next Priority card */}
-              <div className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-rose-500 to-orange-400">
+              <div className="relative overflow-hidden rounded-2xl p-5 bg-[linear-gradient(to_right,#240b36,#c31432)]">
                 <div className="absolute inset-0 opacity-10" style={{
                   backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)"
                 }} />
@@ -854,7 +854,7 @@ function Home() {
             </div>
 
             {/* Next Priority */}
-            <div className="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-rose-500 to-orange-600 animate-fade-in">
+            <div className="relative overflow-hidden rounded-2xl p-6 bg-[linear-gradient(to_right,#240b36,#c31432)]">
               <div className="absolute inset-0 opacity-10" style={{
                 backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 55%)"
               }} />
