@@ -110,14 +110,17 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
       exit={{ opacity: 0, x: -12 }}
       transition={{ duration: 0.18 }}
       className={`group relative flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-2 border transition-all duration-200
-        ${task.completed
-          ? "bg-border-subtle/20 border-border-subtle/30 opacity-60"
-          : "bg-card border-border-subtle hover:border-text-muted/40 hover:shadow-sm hover:shadow-black/10"
+        ${
+          task.completed
+            ? "bg-border-subtle/20 border-border-subtle/30 opacity-60"
+            : "bg-card border-border-subtle hover:border-text-muted/40 hover:shadow-sm hover:shadow-black/10"
         }`}
     >
       {/* Priority accent line */}
       {!task.completed && task.priority !== "none" && (
-        <div className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${pConfig.dot}`} />
+        <div
+          className={`absolute left-0 top-3 bottom-3 w-0.5 rounded-full ${pConfig.dot}`}
+        />
       )}
 
       {/* Drag Handle */}
@@ -140,21 +143,32 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
       >
         {task.completed && (
           <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-            <path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-background"/>
+            <path
+              d="M1.5 4.5L3.5 6.5L7.5 2.5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-background"
+            />
           </svg>
         )}
       </button>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-snug transition-colors ${
-          task.completed ? "line-through text-text-muted" : "text-text-main"
-        }`}>
+        <p
+          className={`text-sm font-medium leading-snug transition-colors ${
+            task.completed ? "line-through text-text-muted" : "text-text-main"
+          }`}
+        >
           {task.title}
         </p>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           {task.person && task.person !== "Unassigned" && (
-            <span className="text-[11px] text-text-muted font-sans">{task.person}</span>
+            <span className="text-[11px] text-text-muted font-sans">
+              {task.person}
+            </span>
           )}
           {task.person && task.person !== "Unassigned" && (
             <span className="text-text-muted/40 text-[10px]">·</span>
@@ -173,7 +187,9 @@ function SortableTask({ task, onToggle, onDelete, showDate }) {
 
       {/* Priority Badge */}
       {pConfig.badge && (
-        <span className={`text-[10px] font-sans font-semibold uppercase tracking-widest px-2.5 py-1 rounded-lg flex-shrink-0 ${pConfig.badge}`}>
+        <span
+          className={`text-[10px] font-sans font-semibold uppercase tracking-widest px-2.5 py-1 rounded-lg flex-shrink-0 ${pConfig.badge}`}
+        >
           {pConfig.label}
         </span>
       )}
@@ -195,8 +211,12 @@ function Home() {
   const navigate = useNavigate();
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const { theme, toggleTheme } = useTheme();
@@ -221,14 +241,20 @@ function Home() {
 
   const todayStr = new Date().toISOString().split("T")[0];
   const todayLabel = new Date()
-    .toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+    .toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
     .toUpperCase();
 
-  const fetchTasks = async (query = "") => {
+  const fetchTasks = async (query = {}, signal = null) => {
     try {
-      const res = await getTasks(query);
+      const res = await getTasks(query, signal); // ← must pass signal here
       setTasks(res.data);
     } catch (err) {
+      if (err.name === "CanceledError") return;
       console.error("Failed to fetch tasks", err);
     }
   };
@@ -264,17 +290,23 @@ function Home() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController(); // ← must be outside setTimeout
+
     const delay = setTimeout(() => {
       const params = {};
       if (searchPerson) params.person = searchPerson;
       if (filterDate) params.date = filterDate;
       if (filterCategory) params.category = filterCategory;
-      fetchTasks(params);
+      fetchTasks(params, controller.signal); // ← passing signal
     }, 300);
-    return () => clearTimeout(delay);
+
+    return () => {
+      clearTimeout(delay);
+      controller.abort(); // ← cancels in-flight request
+    };
   }, [searchPerson, filterCategory, filterDate]);
 
-    const now = new Date();
+  const now = new Date();
   const tomorrowStr = new Date(Date.now() + 86400000)
     .toISOString()
     .split("T")[0];
@@ -372,12 +404,19 @@ function Home() {
         custom_dates: customDates,
         priority,
       });
-      const selectPersonality = localStorage.getItem("notificationPersonality") || "politeness";
+      const selectPersonality =
+        localStorage.getItem("notificationPersonality") || "politeness";
       const dueDateTime = `${resolvedEndDate}T${timeStr || "09:00"}`;
       scheduleTaskNotification(res.id, title, dueDateTime, selectPersonality);
-      setTitle(""); setPerson(""); setStartDate(""); setEndDate("");
-      setSearchPerson(""); setFrequency("once"); setFrequencyDays([]);
-      setPriority("none"); setIsCreatedModalOpen(false);
+      setTitle("");
+      setPerson("");
+      setStartDate("");
+      setEndDate("");
+      setSearchPerson("");
+      setFrequency("once");
+      setFrequencyDays([]);
+      setPriority("none");
+      setIsCreatedModalOpen(false);
       fetchTasks();
     } catch (err) {
       console.error("Failed to create task", err);
@@ -427,7 +466,14 @@ function Home() {
       id: "tasks",
       label: "Tasks",
       icon: (
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
           <rect x="2" y="2" width="5" height="5" rx="1" />
           <rect x="9" y="2" width="5" height="5" rx="1" />
           <rect x="2" y="9" width="5" height="5" rx="1" />
@@ -436,41 +482,84 @@ function Home() {
       ),
       onClick: () => setActiveNav("tasks"),
     },
-    { id: "categories", label: "Categories", icon: <Tag size={15} />, onClick: () => { setActiveNav("categories"); navigate("/categories"); } },
-    { id: "archive", label: "Archive", icon: <Archive size={15} />, onClick: () => { setActiveNav("archive"); navigate("/archive"); } },
-    { id: "bin", label: "Bin", icon: <Trash size={15} />, onClick: () => setActiveNav("bin") },
-    { id: "settings", label: "Settings", icon: <Settings size={15} />, onClick: () => { navigate("/settings"); setActiveNav("settings"); } },
-    
+    {
+      id: "categories",
+      label: "Categories",
+      icon: <Tag size={15} />,
+      onClick: () => {
+        setActiveNav("categories");
+        navigate("/categories");
+      },
+    },
+    {
+      id: "archive",
+      label: "Archive",
+      icon: <Archive size={15} />,
+      onClick: () => {
+        setActiveNav("archive");
+        navigate("/archive");
+      },
+    },
+    {
+      id: "bin",
+      label: "Bin",
+      icon: <Trash size={15} />,
+      onClick: () => setActiveNav("bin"),
+    },
+    {
+      id: "settings",
+      label: "Settings",
+      icon: <Settings size={15} />,
+      onClick: () => {
+        navigate("/settings");
+        setActiveNav("settings");
+      },
+    },
+
     {
       id: "missed",
       label: "Missed",
       icon: <AlertTriangle size={15} />,
-      onClick: () => { setActiveNav("missed"); navigate("/missed-deadlines"); },
+      onClick: () => {
+        setActiveNav("missed");
+        navigate("/missed-deadlines");
+      },
       badge: missedTasks.length,
     },
-    { id: "logout", label: "Logout", icon: <ArrowBigLeft size={15} />, onClick: () => navigate("/") },
+    {
+      id: "logout",
+      label: "Logout",
+      icon: <ArrowBigLeft size={15} />,
+      onClick: () => navigate("/"),
+    },
   ];
 
-  const efficiencyColor = adjustedEfficeincy >= 75
-    ? "from-emerald-500 to-teal-400"
-    : adjustedEfficeincy >= 40
-    ? "from-amber-500 to-yellow-400"
-    : "from-rose-500 to-red-400";
+  const efficiencyColor =
+    adjustedEfficeincy >= 75
+      ? "from-emerald-500 to-teal-400"
+      : adjustedEfficeincy >= 40
+        ? "from-amber-500 to-yellow-400"
+        : "from-rose-500 to-red-400";
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-background transition-colors duration-500 font-sans">
-
       {/* ============ MOBILE TOP BAR ============ */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-0 z-20">
         <div>
-          <p className="text-[9px] font-sans uppercase tracking-[0.2em] text-text-muted">{todayLabel}</p>
-          <p className="text-sm font-bold text-text-main tracking-tight">My Workspace</p>
+          <p className="text-[9px] font-sans uppercase tracking-[0.2em] text-text-muted">
+            {todayLabel}
+          </p>
+          <p className="text-sm font-bold text-text-main tracking-tight">
+            My Workspace
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowMobileFilters((v) => !v)}
             className={`relative w-8 h-8 rounded-xl border flex items-center justify-center transition-all ${
-              showMobileFilters ? "border-text-main text-text-main bg-border-subtle" : "border-border-subtle text-text-muted"
+              showMobileFilters
+                ? "border-text-main text-text-main bg-border-subtle"
+                : "border-border-subtle text-text-muted"
             }`}
           >
             <Filter size={14} />
@@ -496,7 +585,10 @@ function Home() {
       {showMobileSearch && (
         <div className="lg:hidden px-4 py-2 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-[57px] z-20">
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <Search
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+            />
             <input
               placeholder="Search assignee..."
               value={searchPerson}
@@ -519,7 +611,9 @@ function Home() {
             className={`lg:hidden sticky ${mobileFilterTop} z-20 border-b border-border-subtle bg-background/95 backdrop-blur-xl overflow-hidden`}
           >
             <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5 overflow-x-auto scrollbar-hide">
-              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">Date</span>
+              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
+                Date
+              </span>
               {[
                 { label: "Today", value: todayStr },
                 { label: "Tomorrow", value: tomorrowStr },
@@ -527,7 +621,13 @@ function Home() {
               ].map((item) => (
                 <button
                   key={item.label}
-                  onClick={() => setFilterDate(filterDate === item.value && item.value !== "" ? "" : item.value)}
+                  onClick={() =>
+                    setFilterDate(
+                      filterDate === item.value && item.value !== ""
+                        ? ""
+                        : item.value,
+                    )
+                  }
                   className={`px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
                     filterDate === item.value
                       ? "bg-text-main text-background border-text-main font-semibold"
@@ -539,27 +639,42 @@ function Home() {
               ))}
             </div>
             <div className="flex items-center gap-2 px-4 pt-1 pb-2.5 overflow-x-auto scrollbar-hide">
-              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">Cat.</span>
+              <span className="text-[9px] uppercase tracking-[0.15em] text-text-muted flex-shrink-0 mr-1">
+                Cat.
+              </span>
               <button
                 onClick={() => setFilterCategory("")}
                 className={`px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
-                  filterCategory === "" ? "bg-text-main text-background border-text-main font-semibold" : "border-border-subtle text-text-muted"
+                  filterCategory === ""
+                    ? "bg-text-main text-background border-text-main font-semibold"
+                    : "border-border-subtle text-text-muted"
                 }`}
               >
                 All
               </button>
               {categories.map((cat) => {
-                const count = tasks.filter((t) => t.category_name === cat.name && !t.completed && !t.archived).length;
+                const count = tasks.filter(
+                  (t) =>
+                    t.category_name === cat.name && !t.completed && !t.archived,
+                ).length;
                 return (
                   <button
                     key={cat.id}
-                    onClick={() => setFilterCategory(filterCategory === cat.name ? "" : cat.name)}
+                    onClick={() =>
+                      setFilterCategory(
+                        filterCategory === cat.name ? "" : cat.name,
+                      )
+                    }
                     className={`flex items-center gap-1.5 px-3 h-7 rounded-lg text-[11px] border whitespace-nowrap flex-shrink-0 transition-all ${
-                      filterCategory === cat.name ? "bg-text-main text-background border-text-main font-semibold" : "border-border-subtle text-text-muted"
+                      filterCategory === cat.name
+                        ? "bg-text-main text-background border-text-main font-semibold"
+                        : "border-border-subtle text-text-muted"
                     }`}
                   >
                     {cat.name}
-                    {count > 0 && <span className="text-[9px] font-bold">{count}</span>}
+                    {count > 0 && (
+                      <span className="text-[9px] font-bold">{count}</span>
+                    )}
                   </button>
                 );
               })}
@@ -571,8 +686,12 @@ function Home() {
       {/* ============ DESKTOP SIDEBAR ============ */}
       <div className="hidden lg:flex w-[220px] flex-shrink-0 border-r border-border-subtle flex-col px-4 py-7 gap-5 bg-background sticky top-0 h-screen overflow-y-auto">
         <div className="px-2">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-text-muted mb-1">{todayLabel}</p>
-          <p className="text-base font-bold text-text-main tracking-tight">My Workspace</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-text-muted mb-1">
+            {todayLabel}
+          </p>
+          <p className="text-base font-bold text-text-main tracking-tight">
+            My Workspace
+          </p>
         </div>
 
         <nav className="flex flex-col gap-0.5">
@@ -586,7 +705,9 @@ function Home() {
                   : "text-text-muted hover:text-text-main hover:bg-border-subtle/50"
               }`}
             >
-              <span className={`transition-colors ${activeNav === item.id ? "text-text-main" : "text-text-muted group-hover:text-text-main"}`}>
+              <span
+                className={`transition-colors ${activeNav === item.id ? "text-text-main" : "text-text-muted group-hover:text-text-main"}`}
+              >
                 {item.icon}
               </span>
               <span className="flex-1">{item.label}</span>
@@ -618,7 +739,6 @@ function Home() {
 
       {/* ============ MAIN AREA ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
         {/* ---- DESKTOP HEADER ---- */}
         <header className="hidden lg:flex items-center justify-between px-8 py-3.5 border-b border-border-subtle bg-background/90 backdrop-blur-xl sticky top-0 z-10">
           <div className="flex items-center gap-1.5">
@@ -644,7 +764,11 @@ function Home() {
           <div className="flex items-center gap-2">
             {(filterDate || filterCategory || searchPerson) && (
               <button
-                onClick={() => { setFilterDate(""); setFilterCategory(""); setSearchPerson(""); }}
+                onClick={() => {
+                  setFilterDate("");
+                  setFilterCategory("");
+                  setSearchPerson("");
+                }}
                 className="h-8 px-3 rounded-lg text-[12px] border border-dashed border-border-subtle text-text-muted hover:border-rose-400/60 hover:text-rose-400 transition-all flex items-center gap-1.5"
               >
                 <span className="text-[10px]">✕</span> Clear
@@ -658,11 +782,16 @@ function Home() {
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
+                </option>
               ))}
             </select>
             <div className="relative">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <Search
+                size={12}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              />
               <input
                 placeholder="Search assignee..."
                 value={searchPerson}
@@ -678,10 +807,8 @@ function Home() {
 
         {/* TWO-COLUMN CONTENT */}
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-
           {/* ---- TASK JOURNAL ---- */}
           <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-7 pb-32 lg:pb-8">
-
             {/* Hero */}
             <div className="mb-8">
               <p className="text-[10px] uppercase tracking-[0.2em] text-text-muted mb-3 font-medium">
@@ -693,7 +820,8 @@ function Home() {
               <div className="flex items-center gap-3 mt-4">
                 <div className="h-px w-8 bg-text-main/30" />
                 <span className="text-[11px] text-text-muted font-medium">
-                  {tasksDueToday.length} due today · {otherTasks.length} upcoming
+                  {tasksDueToday.length} due today · {otherTasks.length}{" "}
+                  upcoming
                 </span>
               </div>
             </div>
@@ -702,13 +830,21 @@ function Home() {
             <div className="lg:hidden flex flex-col gap-3 mb-8">
               {/* Next Priority card */}
               <div className="relative overflow-hidden rounded-2xl p-5 bg-[linear-gradient(to_right,#240b36,#c31432)]">
-                <div className="absolute inset-0 opacity-10" style={{
-                  backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)"
-                }} />
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/70 mb-2">Next Priority</p>
+                <div
+                  className="absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle at 80% 20%, white 0%, transparent 50%)",
+                  }}
+                />
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/70 mb-2">
+                  Next Priority
+                </p>
                 {tasksDueToday[0] ? (
                   <>
-                    <p className="text-base font-bold text-white leading-snug">{tasksDueToday[0].title}</p>
+                    <p className="text-base font-bold text-white leading-snug">
+                      {tasksDueToday[0].title}
+                    </p>
                     {tasksDueToday[0].category_name && (
                       <span className="mt-2 inline-block text-[10px] font-semibold uppercase tracking-wider text-white/70 bg-white/10 px-2 py-0.5 rounded-md">
                         {tasksDueToday[0].category_name}
@@ -716,7 +852,9 @@ function Home() {
                     )}
                   </>
                 ) : (
-                  <p className="text-base font-bold text-white">All caught up! 🎉</p>
+                  <p className="text-base font-bold text-white">
+                    All caught up! 🎉
+                  </p>
                 )}
               </div>
 
@@ -725,9 +863,13 @@ function Home() {
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-1.5">
                     <Zap size={11} className="text-text-muted" />
-                    <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-text-muted">Efficiency</span>
+                    <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-text-muted">
+                      Efficiency
+                    </span>
                   </div>
-                  <span className="text-sm font-bold text-text-main">{adjustedEfficeincy}%</span>
+                  <span className="text-sm font-bold text-text-main">
+                    {adjustedEfficeincy}%
+                  </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-border-subtle overflow-hidden">
                   <div
@@ -736,10 +878,21 @@ function Home() {
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2.5">
-                  <p className="text-[11px] text-text-muted">{earnedCredits} / {totalCredits} credits</p>
+                  <p className="text-[11px] text-text-muted">
+                    {earnedCredits} / {totalCredits} credits
+                  </p>
                   <div className="flex items-center gap-1">
-                    {[["H", "bg-rose-500/10 text-rose-400"], ["M", "bg-amber-400/10 text-amber-400"], ["L", "bg-sky-400/10 text-sky-400"]].map(([label, cls]) => (
-                      <span key={label} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${cls}`}>{label}</span>
+                    {[
+                      ["H", "bg-rose-500/10 text-rose-400"],
+                      ["M", "bg-amber-400/10 text-amber-400"],
+                      ["L", "bg-sky-400/10 text-sky-400"],
+                    ].map(([label, cls]) => (
+                      <span
+                        key={label}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${cls}`}
+                      >
+                        {label}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -751,17 +904,32 @@ function Home() {
               <section className="mb-8">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">Due Today</h3>
+                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">
+                      Due Today
+                    </h3>
                     <span className="text-[10px] bg-rose-500/10 text-rose-400 font-bold px-2 py-0.5 rounded-md">
                       {tasksDueToday.length} pending
                     </span>
                   </div>
                 </div>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(tasksDueToday)}>
-                  <SortableContext items={tasksDueToday.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={makeHandleDragEnd(tasksDueToday)}
+                >
+                  <SortableContext
+                    items={tasksDueToday.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
                     <AnimatePresence>
                       {tasksDueToday.map((task) => (
-                        <SortableTask key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} showDate={false} />
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggle}
+                          onDelete={handleDelete}
+                          showDate={false}
+                        />
                       ))}
                     </AnimatePresence>
                   </SortableContext>
@@ -774,17 +942,32 @@ function Home() {
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">Upcoming</h3>
+                    <h3 className="text-[11px] uppercase tracking-[0.14em] font-bold text-text-main">
+                      Upcoming
+                    </h3>
                     <span className="text-[10px] bg-border-subtle text-text-muted font-bold px-2 py-0.5 rounded-md">
                       {otherTasks.length} entries
                     </span>
                   </div>
                 </div>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeHandleDragEnd(otherTasks)}>
-                  <SortableContext items={otherTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={makeHandleDragEnd(otherTasks)}
+                >
+                  <SortableContext
+                    items={otherTasks.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
                     <AnimatePresence>
                       {otherTasks.map((task) => (
-                        <SortableTask key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} showDate={true} />
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={handleToggle}
+                          onDelete={handleDelete}
+                          showDate={true}
+                        />
                       ))}
                     </AnimatePresence>
                   </SortableContext>
@@ -797,7 +980,9 @@ function Home() {
                 <div className="w-12 h-12 rounded-2xl bg-border-subtle flex items-center justify-center text-text-muted">
                   <CheckCircle2 size={20} />
                 </div>
-                <p className="text-text-muted text-xs uppercase tracking-wide">No tasks yet. Click + to create one.</p>
+                <p className="text-text-muted text-xs uppercase tracking-wide">
+                  No tasks yet. Click + to create one.
+                </p>
               </div>
             )}
 
@@ -815,16 +1000,21 @@ function Home() {
 
           {/* ---- DESKTOP RIGHT PANEL ---- */}
           <aside className="hidden lg:flex w-56 flex-shrink-0 border-l border-border-subtle px-5 py-7 flex-col gap-7 bg-background overflow-y-auto">
-
             {/* Efficiency */}
             <div>
               <div className="flex items-center gap-1.5 mb-3">
                 <Zap size={10} className="text-text-muted" />
-                <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted">Task Efficiency</p>
+                <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted">
+                  Task Efficiency
+                </p>
               </div>
               <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[11px] text-text-muted">Credits earned</span>
-                <span className="text-[12px] font-bold text-text-main">{adjustedEfficeincy}%</span>
+                <span className="text-[11px] text-text-muted">
+                  Credits earned
+                </span>
+                <span className="text-[12px] font-bold text-text-main">
+                  {adjustedEfficeincy}%
+                </span>
               </div>
               <div className="h-1.5 rounded-full bg-border-subtle overflow-hidden">
                 <div
@@ -833,20 +1023,54 @@ function Home() {
                 />
               </div>
               <p className="text-[10px] text-text-muted mt-2">
-                {earnedCredits} of {totalCredits} credits · {completedTasks.length} done
+                {earnedCredits} of {totalCredits} credits ·{" "}
+                {completedTasks.length} done
               </p>
               <div className="mt-3.5 flex flex-col gap-1.5">
                 {[
-                  { label: "High priority", credit: 4, key: "high", color: "text-rose-400" },
-                  { label: "Medium priority", credit: 3, key: "medium", color: "text-amber-400" },
-                  { label: "Low priority", credit: 1, key: "low", color: "text-sky-400" },
-                  { label: "No priority", credit: 0, key: "none", color: "text-text-muted" },
+                  {
+                    label: "High priority",
+                    credit: 4,
+                    key: "high",
+                    color: "text-rose-400",
+                  },
+                  {
+                    label: "Medium priority",
+                    credit: 3,
+                    key: "medium",
+                    color: "text-amber-400",
+                  },
+                  {
+                    label: "Low priority",
+                    credit: 1,
+                    key: "low",
+                    color: "text-sky-400",
+                  },
+                  {
+                    label: "No priority",
+                    credit: 0,
+                    key: "none",
+                    color: "text-text-muted",
+                  },
                 ].map((row) => {
-                  const hasAny = activeTasks.some((t) => t.priority === row.key);
+                  const hasAny = activeTasks.some(
+                    (t) => t.priority === row.key,
+                  );
                   return (
-                    <div key={row.key} className="flex items-center justify-between">
-                      <span className={`text-[10px] ${hasAny ? row.color : "text-text-muted/25"}`}>· {row.label}</span>
-                      <span className={`text-[10px] font-bold ${hasAny ? "text-text-main" : "text-text-muted/25"}`}>{row.credit} cr</span>
+                    <div
+                      key={row.key}
+                      className="flex items-center justify-between"
+                    >
+                      <span
+                        className={`text-[10px] ${hasAny ? row.color : "text-text-muted/25"}`}
+                      >
+                        · {row.label}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold ${hasAny ? "text-text-main" : "text-text-muted/25"}`}
+                      >
+                        {row.credit} cr
+                      </span>
                     </div>
                   );
                 })}
@@ -855,13 +1079,21 @@ function Home() {
 
             {/* Next Priority */}
             <div className="relative overflow-hidden rounded-2xl p-6 bg-[linear-gradient(to_right,#240b36,#c31432)]">
-              <div className="absolute inset-0 opacity-10" style={{
-                backgroundImage: "radial-gradient(circle at 80% 20%, white 0%, transparent 55%)"
-              }} />
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white mb-2">Next Priority</p>
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage:
+                    "radial-gradient(circle at 80% 20%, white 0%, transparent 55%)",
+                }}
+              />
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white mb-2">
+                Next Priority
+              </p>
               {tasksDueToday[0] ? (
                 <>
-                  <p className="text-[13px] font-bold text-white leading-snug">{tasksDueToday[0].title}</p>
+                  <p className="text-[13px] font-bold text-white leading-snug">
+                    {tasksDueToday[0].title}
+                  </p>
                   {tasksDueToday[0].category_name && (
                     <p className="text-[10px] text-white/70 mt-1.5 uppercase tracking-wider font-semibold">
                       {tasksDueToday[0].category_name}
@@ -869,20 +1101,33 @@ function Home() {
                   )}
                 </>
               ) : (
-                <p className="text-[13px] font-bold text-white">All caught up! 🎉</p>
+                <p className="text-[13px] font-bold text-white">
+                  All caught up! 🎉
+                </p>
               )}
             </div>
 
             {/* Categories */}
             <div>
-              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">Categories</p>
+              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">
+                Categories
+              </p>
               <div className="flex flex-col gap-0.5">
                 {categories.slice(0, 6).map((cat) => {
-                  const count = tasks.filter((t) => t.category_name === cat.name && !t.completed && !t.archived).length;
+                  const count = tasks.filter(
+                    (t) =>
+                      t.category_name === cat.name &&
+                      !t.completed &&
+                      !t.archived,
+                  ).length;
                   return (
                     <button
                       key={cat.id}
-                      onClick={() => setFilterCategory(filterCategory === cat.name ? "" : cat.name)}
+                      onClick={() =>
+                        setFilterCategory(
+                          filterCategory === cat.name ? "" : cat.name,
+                        )
+                      }
                       className={`flex items-center justify-between text-[11px] px-2.5 py-2 rounded-lg transition-all text-left ${
                         filterCategory === cat.name
                           ? "bg-text-main/8 text-text-main font-semibold"
@@ -891,9 +1136,15 @@ function Home() {
                     >
                       <span>· {cat.name}</span>
                       {count > 0 && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                          filterCategory === cat.name ? "bg-text-main text-background" : "bg-border-subtle text-text-muted"
-                        }`}>{count}</span>
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                            filterCategory === cat.name
+                              ? "bg-text-main text-background"
+                              : "bg-border-subtle text-text-muted"
+                          }`}
+                        >
+                          {count}
+                        </span>
                       )}
                     </button>
                   );
@@ -903,21 +1154,36 @@ function Home() {
 
             {/* Deadlines */}
             <div>
-              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">Deadlines</p>
+              <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-text-muted mb-3">
+                Deadlines
+              </p>
               <div className="flex flex-col gap-3">
                 {tasks
                   .filter((t) => !t.completed && !t.archived && t.end_date)
                   .sort((a, b) => a.end_date.localeCompare(b.end_date))
                   .slice(0, 4)
                   .map((t) => {
-                    const daysLeft = Math.max(0, Math.ceil((new Date(t.end_date) - new Date(todayStr)) / 86400000));
+                    const daysLeft = Math.max(
+                      0,
+                      Math.ceil(
+                        (new Date(t.end_date) - new Date(todayStr)) / 86400000,
+                      ),
+                    );
                     return (
                       <div key={t.id} className="flex gap-2.5 items-start">
-                        <div className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${daysLeft === 0 ? "bg-rose-500" : daysLeft <= 2 ? "bg-amber-400" : "bg-text-main"}`} />
+                        <div
+                          className={`w-1 h-1 rounded-full mt-1.5 flex-shrink-0 ${daysLeft === 0 ? "bg-rose-500" : daysLeft <= 2 ? "bg-amber-400" : "bg-text-main"}`}
+                        />
                         <div>
-                          <p className="text-[11px] font-medium text-text-main leading-snug">{t.title}</p>
-                          <p className={`text-[10px] mt-0.5 ${daysLeft === 0 ? "text-rose-400 font-semibold" : "text-text-muted"}`}>
-                            {daysLeft === 0 ? "Due today" : `In ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
+                          <p className="text-[11px] font-medium text-text-main leading-snug">
+                            {t.title}
+                          </p>
+                          <p
+                            className={`text-[10px] mt-0.5 ${daysLeft === 0 ? "text-rose-400 font-semibold" : "text-text-muted"}`}
+                          >
+                            {daysLeft === 0
+                              ? "Due today"
+                              : `In ${daysLeft} day${daysLeft !== 1 ? "s" : ""}`}
                           </p>
                         </div>
                       </div>

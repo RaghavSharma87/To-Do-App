@@ -94,9 +94,11 @@ API.interceptors.response.use(
 );
 
 // ── GET
-export const getTasks = (params = {}) => {
+export const getTasks = (params = {}, signal = null) => {
   const query = new URLSearchParams(params).toString();
-  return API.get(`tasks/${query ? `?${query}` : ""}`);
+  return API.get(`tasks/${query ? `?${query}` : ""}`, {
+    signal, // AbortController signal natively
+  });
 };
 
 // ── POST
